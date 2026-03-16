@@ -8,13 +8,24 @@
 using namespace std;
 #define MAX_ALLOW_ENTRIES 131072
 
-priority_queue g_AvailPointer;
-
 typedef struct insert{
     bool didSplit;
     int newFirstKey;
     string newFileName;
 } insert_t;
+
+
+// Helper functionns to read and write to txt files.
+template<typename StreamType>
+inline void file_opened(const StreamType& file, string_view fileName);
+
+inline void log_error(string_view msg);
+
+map<int,string> read_file(string& fileName, bool& isLeaf);
+
+bool write_file(string& fileName, map<int,string>& currNode, bool isLeaf);
+
+
 
 class BPlusTree{
     public:
@@ -23,11 +34,15 @@ class BPlusTree{
         string root;
         int numRows;
         int currLevel;
+        priority_queue<int> availPointer;
 
         BPlusTree()
         :numRows(0)
-        ,currLevel(1)
-        { }
+        ,currLevel(1), root(""){
+            for(int i=1; i<=37449; i++){
+                availPointer.push(i);
+            }
+        }
 
 
 
@@ -36,11 +51,11 @@ class BPlusTree{
 
         // some new constructor
 
-        string Search(int key);
-        bool Insert(int key);
-        bool Delete(int key);
+        string Search(int key);  // Search wrapper: Returns file name of the found row, "" if not found
+        bool Insert(int key);  // Insert wrapper: Returns true on success
+        bool Delete(int key);  // Delete wrapper: Returns true on success
     private:
-        insert_t f_insert(int key, string& file);
-        ... f_delete(int key, string& file);
-        string f_search(int key, string& file);
+        insert_t f_insert(int key, string& file);  // Recursive insert
+        ... f_delete(int key, string& file);  // Recursive delete
+        string f_search(int key, string& file);  // Recursive search
 };
