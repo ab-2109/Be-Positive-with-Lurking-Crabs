@@ -8,12 +8,12 @@
 using namespace std;
 #define MAX_ALLOW_ENTRIES 131072
 
-priority_queue gAvailPointer;
+priority_queue g_AvailPointer;
 
-typedef struct{
-    bool did_split;
-    int new_first_key;
-    string new_file_name;
+typedef struct insert{
+    bool didSplit;
+    int newFirstKey;
+    string newFileName;
 } insert_t;
 
 class BPlusTree{
