@@ -37,9 +37,10 @@ class BPlusTree{
         // some new constructor
 
         string Search(int key);
-        vector<string> SearchRange(int low, int high);
         bool Insert(int key);
         bool Delete(int key);
     private:
         insert_t f_insert(int key, string& file);
+        ... f_delete(int key, string& file);
+        string f_search(int key, string& file);
 };
