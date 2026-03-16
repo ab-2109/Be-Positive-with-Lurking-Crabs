@@ -1,0 +1,12 @@
+The order of our B+ Tree is n = 8.
+We will allow a maximum of 6 levels (due to storage limits of our laptops).
+Thus, names of nodes (which are text files) will be an integer in the range 1 to 37449 
+(as 1+8+8^2+...+8^5 = 37449).
+
+Each row entry will be stored in an independent text file named after it's key.
+
+Priority Queue: For available file names (initially add 1 to 37449). Initially all these nums 
+are added to the pq. Whenever we want to insert an element, we will do pq.pop() and whenever we 
+delete a file, we will add the integer to the pq.
+
+We will make 2 folders, one to store node txt files and the other to store sql row files.
