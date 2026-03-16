@@ -1,19 +1,19 @@
-#include "include/bptree.hpp"
+#include "../include/bptree.hpp"
 
 using namespace std;
 
 bool BPlusTree::Insert(int key){
-    if(BPlusTree::Search(key) != ""){
+    
+    if(Search(key) != ""){
         BP_ERROR = KEY_EXISTS;
         return false;
     }
     if(numRows==0){
         // Making root file
-        root = to_string(availPointer.top())+".txt";
-        availPointer.pop();
+        root = get_free_file_name(false);
 
         map<int,string> currNode;
-        currNode[key] = to_string(key)+".txt";
+        currNode[key] = get_free_file_name(true,key);
         bool status = write_file(root, currNode, true);
         if(status){
             numRows++;
@@ -33,16 +33,15 @@ bool BPlusTree::Insert(int key){
 
     // Time to create new root
     map<int,string> newRoot;
-
-    string newRootFile = to_string(availPointer.top())+".txt";
-    availPointer.pop();
-
     newRoot[0] = root;  // According to our map convention, we store the 1st 
     // pointer of the node as value of the key 0 (assuming all key values are 
     // always >0)
     newRoot[node.newFirstKey] = node.newFileName;
+
+    string newRootFile = get_free_file_name(false);
+
     write_file(newRootFile, newRoot, false);  // New root is not leaf
-    root = newRootFile;
+    root = newRootFile; 
     currLevel++;
 
     return true;
@@ -51,10 +50,11 @@ bool BPlusTree::Insert(int key){
 insert_t BPlusTree::f_insert(int key, string& file){
     bool isLeaf;
     map<int,string> currNode = read_file(file, isLeaf);
+
     if(!isLeaf){
         // In the map, search for the key
         auto it = currNode.upper_bound(key);
-        it--;
+        prev(it);
 
         insert_t node = f_insert(key, it->second);
 
@@ -68,20 +68,15 @@ insert_t BPlusTree::f_insert(int key, string& file){
         else{
             // Create new file
             map<int,string> newNode;
-            string newFile = to_string(availPointer.top())+".txt";
-            availPointer.pop();
+            string newFile = get_free_file_name(false);
 
-            int k = (N+2)/2;
-            auto it = currNode.end();
-            for(int i=0; i<k; i++){  // Splitting current node
-                --it;
-                newNode[it->first] = it->second;
-            }
-            currNode.erase(it, currNode.end());
+            split_node(currNode,newNode);
 
-            int promotedKey = newNode.begin()->first;
-            newNode[0] = newNode.begin()->second;
-            newNode.erase(newNode.begin());
+            auto it = newNode.begin();
+            int promotedKey = it->first;
+
+            newNode[0] = it->second;
+            newNode.erase(it);
 
             write_file(file, currNode, false);
             write_file(newFile, newNode, false);
@@ -89,7 +84,7 @@ insert_t BPlusTree::f_insert(int key, string& file){
         }
     }
     else{
-        currNode[key] = to_string(key)+".txt";
+        currNode[key] = get_free_file_name(true,key);
         if(currNode.size()<=N){
             write_file(file, currNode, true);
             return {false, 0, ""};
@@ -97,16 +92,9 @@ insert_t BPlusTree::f_insert(int key, string& file){
         else{
             // Create new file
             map<int,string> newNode;
-            string newFile = to_string(availPointer.top())+".txt";
-            availPointer.pop();
-
-            int k = (N+2)/2;
-            auto it = currNode.end();
-            for(int i=0; i<k; i++){  // Splitting current node
-                --it;
-                newNode[it->first] = it->second;
-            }
-            currNode.erase(it, currNode.end());
+            string newFile = get_free_file_name(false);
+            
+            split_node(currNode,newNode);
 
             write_file(file, currNode, true);
             write_file(newFile, newNode, true);

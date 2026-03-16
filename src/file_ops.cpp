@@ -18,6 +18,26 @@ inline void log_error(string_view msg)
     exit(EXIT_FAILURE);
 }
 
+
+string get_free_file_name(bool isLeaf,int key=-1)
+{
+    string fileName;
+    if(isLeaf)
+    {
+        fileName="Data/"+to_string(key)+".txt";
+    }
+    else{
+        if(BPlusTree::availPointer.empty())
+        log_error("file_ops.cpp: get_free_file_name(): Not key free");
+
+        key = BPlusTree::availPointer.top();
+        BPlusTree::availPointer.pop();
+        fileName = "Index/" + to_string(key) + ".txt";
+    }
+
+    return fileName;
+}
+    
 map<int,string> read_file(string& fileName,bool& isLeaf)
 {
     ifstream file(fileName,ios::in);

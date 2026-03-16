@@ -10,7 +10,7 @@ using namespace std;
 
 typedef enum {MEM_FULL, KEY_EXISTS} BP_Error;
 BP_Error BP_ERROR;
-map<BP_Error, string> g_ErrorMsg = {
+const map<BP_Error, string> g_ErrorMsg = {
     {MEM_FULL, "Insertion Failed. Memory Limit has been reached."},
     {KEY_EXISTS, "Insertion Failed. The key already exists, to update it, delete it first and then insert again."}
 };
@@ -32,6 +32,8 @@ map<int,string> read_file(string& fileName, bool& isLeaf);
 
 bool write_file(string& fileName, map<int,string>& currNode, bool isLeaf);
 
+string get_free_file_name(bool isLeaf,int key=-1);
+
 
 
 class BPlusTree{
@@ -41,28 +43,26 @@ class BPlusTree{
         string root;
         int numRows;
         int currLevel;
-        priority_queue<int> availPointer;
+        static priority_queue<int> availPointer;
 
         BPlusTree()
         :numRows(0)
-        ,currLevel(0), root(""){
+        ,currLevel(0)
+        ,root(""){
             for(int i=1; i<=37449; i++){
                 availPointer.push(i);
             }
         }
-
-
-
-
         ~BPlusTree()=default;
-
-        // some new constructor
 
         string Search(int key);  // Search wrapper: Returns file name of the found row, "" if not found
         bool Insert(int key);  // Insert wrapper: Returns true on success
         bool Delete(int key);  // Delete wrapper: Returns true on success
     private:
         insert_t f_insert(int key, string& file);  // Recursive insert
-        ... f_delete(int key, string& file);  // Recursive delete
+        string f_delete(int key, string& file);  // Recursive delete
         string f_search(int key, string& file);  // Recursive search
+
+        inline void split_node(map<int,string> &currNode,map<int,string> &newNode); // split the node in two halfs
+        friend string get_free_file_name(bool,int=-1);
 };
