@@ -8,6 +8,13 @@
 using namespace std;
 #define MAX_ALLOW_ENTRIES 131072
 
+typedef enum {MEM_FULL, KEY_EXISTS} BP_Error;
+BP_Error BP_ERROR;
+map<BP_Error, string> g_ErrorMsg = {
+    {MEM_FULL, "Insertion Failed. Memory Limit has been reached."},
+    {KEY_EXISTS, "Insertion Failed. The key already exists, to update it, delete it first and then insert again."}
+};
+
 typedef struct insert{
     bool didSplit;
     int newFirstKey;

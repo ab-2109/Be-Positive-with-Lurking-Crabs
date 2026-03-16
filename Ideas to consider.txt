@@ -4,6 +4,8 @@ After you do this, delete this point from this file.
 
 - In the main function, we can make menu based insert/search/delete 
 options. 
+    Note: In case of failure, we will print error msg according to 
+    BP_ERROR value.
     If user chooses insert:
         We will ask for key.
         We will ask for all the field values.

@@ -3,6 +3,10 @@
 using namespace std;
 
 bool BPlusTree::Insert(int key){
+    if(BPlusTree::Search(key) != ""){
+        BP_ERROR = KEY_EXISTS;
+        return false;
+    }
     if(numRows==0){
         // Making root file
         root = to_string(availPointer.top())+".txt";
@@ -18,6 +22,7 @@ bool BPlusTree::Insert(int key){
         return status;
     }
     else if(numRows == MAX_ALLOW_ENTRIES){
+        BP_ERROR = MEM_FULL;
         return false;
     }
 
