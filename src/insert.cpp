@@ -3,7 +3,6 @@
 using namespace std;
 
 
-void BPlusTree::insert(int key,string& file)
-{
-
+insert_t BPlusTree::insert(int key, string& file){
+    
 }
