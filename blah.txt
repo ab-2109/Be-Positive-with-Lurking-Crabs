@@ -5,6 +5,12 @@ Thus, names of nodes (which are text files) will be an integer in the range 1 to
 
 Each row entry will be stored in an independent text file named after it's key.
 
+There can be a maximum of 8^5 leaf nodes. We are capping the total number of sql entries 
+at 131072 (which is 4*8^5) because in the worst case all the leaf nodes will have 4 entries 
+but if just one of them has 8 entries and we have to add the 9th one there, there will be a need 
+to increase the number of levels.
+
+
 Priority Queue: For available file names (initially add 1 to 37449). Initially all these nums 
 are added to the pq. Whenever we want to insert an element, we will do pq.pop() and whenever we 
 delete a file, we will add the integer to the pq.
