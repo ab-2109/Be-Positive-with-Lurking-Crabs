@@ -38,7 +38,7 @@ class BPlusTree{
 
         BPlusTree()
         :numRows(0)
-        ,currLevel(1), root(""){
+        ,currLevel(0), root(""){
             for(int i=1; i<=37449; i++){
                 availPointer.push(i);
             }
