@@ -36,7 +36,7 @@ class BPlusTree{
 
         // some new constructor
 
-        bool Search(int key);
+        string Search(int key);
         bool Insert(int key);
         bool Delete(int key);
     private:

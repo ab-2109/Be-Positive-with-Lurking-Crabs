@@ -2,7 +2,10 @@
 
 using namespace std;
 
+bool BPlusTree::Insert(int key){
 
-insert_t BPlusTree::insert(int key, string& file){
+}
+
+insert_t BPlusTree::f_insert(int key, string& file){
     
 }
