@@ -1,6 +1,16 @@
 #include "../include/bptree.hpp"
 
-using namespace std;
+
+inline void BPlusTree::split_node(map<int,string> &currNode,map<int,string> &newNode)
+{
+    int k = (N+2)/2;
+            auto it = prev(currNode.end(), k);
+            
+            while(it != currNode.end()){        //splitting current node
+                newNode.insert(currNode.extract(it++)); 
+    }
+}
+
 
 bool BPlusTree::Insert(int key){
     
@@ -33,7 +43,7 @@ bool BPlusTree::Insert(int key){
 
     // Time to create new root
     map<int,string> newRoot;
-    newRoot[0] = root;  // According to our map convention, we store the 1st 
+    newRoot[EMPTY_NODE_VAL] = root;  // According to our map convention, we store the 1st 
     // pointer of the node as value of the key 0 (assuming all key values are 
     // always >0)
     newRoot[node.newFirstKey] = node.newFileName;
@@ -53,8 +63,7 @@ insert_t BPlusTree::f_insert(int key, string& file){
 
     if(!isLeaf){
         // In the map, search for the key
-        auto it = currNode.upper_bound(key);
-        prev(it);
+        auto it = prev(currNode.upper_bound(key));
 
         insert_t node = f_insert(key, it->second);
 
@@ -75,7 +84,7 @@ insert_t BPlusTree::f_insert(int key, string& file){
             auto it = newNode.begin();
             int promotedKey = it->first;
 
-            newNode[0] = it->second;
+            newNode[EMPTY_NODE_VAL] = it->second;
             newNode.erase(it);
 
             write_file(file, currNode, false);

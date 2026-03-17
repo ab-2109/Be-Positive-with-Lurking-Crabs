@@ -1,17 +1,206 @@
 #include "../include/bptree.hpp"
 
-
-
-// this returns true if it doesnot find key in the tree
-bool BPlusTree::Delete(int key)
+static int real_keys(const map<int, string> &node, bool isLeaf)
 {
-    if(Search(key)=="")
+    return isLeaf ? (int)node.size() : (int)node.size() - 1;
+}
+
+static int extract_id(const string &fileName)
+{
+    // "Index/42.txt" → 42
+    size_t slash = fileName.find('/');
+    size_t dot = fileName.rfind('.');
+    return stoi(fileName.substr(slash + 1, dot - slash - 1));
+}
+
+inline void reclaim_file_num(const string& fileName)
+{
+        remove(fileName.c_str());
+        BPlusTree::availPointer.push(extract_id(fileName));
+}
+
+inline void BPlusTree::merge_nodes(map<int,string>& left, map<int,string>& right,bool isLeaf, int sepKey)
+{
+    if (isLeaf) {
+        for (auto& [k,v] : right) left[k] = v;
+    } else {
+        left[sepKey] = right[EMPTY_NODE_VAL];       // sep bridges: right's leftmost child goes under sepKey in left
+        for (auto& [k,v] : right)
+            if (k != EMPTY_NODE_VAL) left[k] = v;
+    }
+}
+
+
+void BPlusTree::borrow_node(map<int,string>& childNode,map<int,string>& sibNode,bool isLeaf, int& sepKey, bool isRightSib)
+{
+    if (isLeaf) {
+        if (isRightSib) {
+            childNode[sibNode.begin()->first] = sibNode.begin()->second;  // move sib's first into child
+            sibNode.erase(sibNode.begin());
+            sepKey = sibNode.begin()->first;                               // new sep = new first of sib
+        } else {
+            auto borrow = prev(sibNode.end());
+            childNode[borrow->first] = borrow->second;                    // move sib's last into child
+            sibNode.erase(borrow);
+            sepKey = childNode.begin()->first;                             // new sep = new first of child
+        }
+    } else {
+        if (isRightSib) {
+            childNode[sepKey]         = sibNode[EMPTY_NODE_VAL];          // sep comes down into child
+            auto sibFirst             = next(sibNode.begin());             // sib's first real key goes up
+            sibNode[EMPTY_NODE_VAL]   = sibFirst->second;                 // sib's new leftmost child
+            sepKey                    = sibFirst->first;                   // new sep = promoted key
+            sibNode.erase(sibFirst);
+        } else {
+            childNode[sepKey]         = childNode[EMPTY_NODE_VAL];        // shift child's leftmost right, under sep
+            childNode[EMPTY_NODE_VAL] = prev(sibNode.end())->second;      // sib's last child becomes child's new leftmost
+            sepKey                    = prev(sibNode.end())->first;        // new sep = promoted key
+            sibNode.erase(prev(sibNode.end()));
+        }
+    }
+}
+
+delete_t BPlusTree::f_delete(int key, string &file)
+{
+    bool isLeaf;
+    map<int, string> currNode = read_file(file, isLeaf);
+    const int MIN_KEYS = (N + 1) / 2; // ceil(N/2) = 4 for N=8
+
+    if (isLeaf)
     {
-        cerr<<"(WARNING) Delete.cpp: Delete(): Key Not Present\n";
-        return true;
+
+        remove(currNode[key].c_str()); // delete the actual row data file
+        currNode.erase(key);
+        write_file(file, currNode, true);
+
+        if (real_keys(currNode, true) >= MIN_KEYS)
+            return {false, -1}; // healthy — nothing for parent to do
+
+        return {true, -1}; // removedSepKey unused at leaf level
     }
 
-    // more on this coming soon. Stay tuned.....
+    // internal node
+
+    /* this logic is valid as the first index will be zero
+    in a map so prev will always be valid */
+    auto it = prev(currNode.upper_bound(key));
+    string childFile = it->second;
+
+    delete_t result = f_delete(key, childFile);
+
+    if (!result.didMerge)
+        return {false, -1};
+
+    // if the child node is deleted then we dont need the seperator key the childfile it was pointing is deleted in recursive call
+    // so right not it is dangling
+    currNode.erase(result.removedSepKey);
+
+    if (real_keys(currNode, false) >= MIN_KEYS)
+    {
+        write_file(file, currNode, false);
+        return {false, -1};
+    }
+
+    bool childIsLeaf;
+    map<int, string> childNode = read_file(childFile, childIsLeaf);
+
+    it = prev(currNode.upper_bound(key)); // re-navigate with updated currNode
+
+        auto rightIt = next(it);
+    bool hasRight = (rightIt != currNode.end());
+    auto leftIt   = (it != currNode.begin()) ? prev(it) : currNode.end();
+    bool hasLeft  = (leftIt != currNode.end());
+
+    if (hasRight) {
+        string sibFile = rightIt->second;
+        bool sibIsLeaf;
+        map<int,string> sibNode = read_file(sibFile, sibIsLeaf);
+        int sepKey = rightIt->first;
+
+        if (real_keys(sibNode, sibIsLeaf) > MIN_KEYS) {
+            int oldSep = sepKey;
+            borrow_node(childNode, sibNode, childIsLeaf, sepKey, true);
+            currNode[sepKey] = currNode[oldSep];
+            currNode.erase(oldSep);
+            write_file(childFile, childNode, childIsLeaf);
+            write_file(sibFile,   sibNode,   sibIsLeaf);
+            write_file(file,      currNode,  false);
+            return {false, -1};
+        }
+
+        merge_nodes(childNode, sibNode, childIsLeaf, sepKey);
+        currNode.erase(sepKey);
+
+        reclaim_file_num(sibFile);
+        write_file(childFile, childNode, childIsLeaf);
+        write_file(file, currNode, false);
+        return {real_keys(currNode, false) < MIN_KEYS, sepKey};
+    }
+
+    if (hasLeft) {
+        string sibFile = leftIt->second;
+        bool sibIsLeaf;
+        map<int,string> sibNode = read_file(sibFile, sibIsLeaf);
+        int sepKey = it->first;
+
+        if (real_keys(sibNode, sibIsLeaf) > MIN_KEYS) {
+            int oldSep = sepKey;
+            borrow_node(childNode, sibNode, childIsLeaf, sepKey, false);
+            currNode[sepKey] = currNode[oldSep];
+            currNode.erase(oldSep);
+            write_file(sibFile,   sibNode,   sibIsLeaf);
+            write_file(childFile, childNode, childIsLeaf);
+            write_file(file,      currNode,  false);
+            return {false, -1};
+        }
+
+        merge_nodes(sibNode, childNode, childIsLeaf, sepKey);
+        currNode.erase(sepKey);
+
+        reclaim_file_num(childFile);
+        write_file(sibFile, sibNode, sibIsLeaf);
+        write_file(file, currNode, false);
+        return {real_keys(currNode, false) < MIN_KEYS, sepKey};
+    }
+
+    log_error("delete.cpp(): f_delete: corrupt tree — node has no siblings");
+    return {false, -1};
+}
 
 
+bool BPlusTree::Delete(int key)
+{
+    if (Search(key) == "")
+    {
+        BP_ERROR=KEY_NOT_EXISTS;
+        cerr << "(WARNING) Delete(): Key " << key << " not present\n";  // to be removed later on.
+        return false;
+    }
+
+    numRows--;
+    delete_t result = f_delete(key, root);
+
+    if (!result.didMerge)
+        return true;
+
+    bool rootIsLeaf;
+    map<int, string> rootNode = read_file(root, rootIsLeaf);
+
+    if (!rootIsLeaf && real_keys(rootNode, false)==EMPTY_NODE_VAL)
+    {
+        string newRoot=rootNode[EMPTY_NODE_VAL];
+        reclaim_file_num(root);
+        root = newRoot;
+        currLevel--; // mirror of currLevel++ in Insert
+    }
+
+    if (numRows == 0)
+    {
+        reclaim_file_num(root);
+        
+        root = "";
+        currLevel = 0;
+    }
+
+    return true;
 }

@@ -3,16 +3,19 @@
 #include <iostream>
 #include <bits/stdc++.h>
 #include <fstream>
+#include <filesystem>
 
 
 using namespace std;
 #define MAX_ALLOW_ENTRIES 131072
+#define EMPTY_NODE_VAL 0
 
-typedef enum {MEM_FULL, KEY_EXISTS} BP_Error;
-BP_Error BP_ERROR;
-const map<BP_Error, string> g_ErrorMsg = {
+typedef enum {MEM_FULL, KEY_EXISTS, KEY_NOT_EXISTS} BP_Error;
+inline BP_Error BP_ERROR = MEM_FULL;
+inline const map<BP_Error, string> g_ErrorMsg = {
     {MEM_FULL, "Insertion Failed. Memory Limit has been reached."},
-    {KEY_EXISTS, "Insertion Failed. The key already exists, to update it, delete it first and then insert again."}
+    {KEY_EXISTS, "Insertion Failed. The key already exists, to update it, delete it first and then insert again."},
+    {KEY_NOT_EXISTS,"Delete Failed. The key could not found."}
 };
 
 typedef struct insert{
@@ -22,17 +25,29 @@ typedef struct insert{
 } insert_t;
 
 
+typedef struct deletion {
+    bool didMerge;       // mirror of didSplit
+    int  removedSepKey;  // the separator key the parent must drop
+} delete_t;
+
 // Helper functionns to read and write to txt files.
 template<typename StreamType>
-inline void file_opened(const StreamType& file, string_view fileName);
+inline void file_opened(const StreamType& file, string_view fileName)
+{
+    if (!file.is_open())
+    {
+        cerr << "(ERROR) file_ops.cpp: Can't Open file " << fileName << endl;
+        exit(EXIT_FAILURE);
+    }
+}
 
-inline void log_error(string_view msg);
+void log_error(string_view msg);
 
-map<int,string> read_file(string& fileName, bool& isLeaf);
+map<int,string> read_file(const string& fileName, bool& isLeaf);
 
-bool write_file(string& fileName, map<int,string>& currNode, bool isLeaf);
+bool write_file(const string& fileName, map<int,string>& currNode, bool isLeaf);
 
-string get_free_file_name(bool isLeaf,int key=-1);
+string get_free_file_name(bool isData,int key=-1);
 
 
 
@@ -46,9 +61,9 @@ class BPlusTree{
         static priority_queue<int> availPointer;
 
         BPlusTree()
-        :numRows(0)
-        ,currLevel(0)
-        ,root(""){
+        :root("")
+        ,numRows(0)
+        ,currLevel(0){
             for(int i=1; i<=37449; i++){
                 availPointer.push(i);
             }
@@ -60,9 +75,12 @@ class BPlusTree{
         bool Delete(int key);  // Delete wrapper: Returns true on success
     private:
         insert_t f_insert(int key, string& file);  // Recursive insert
-        string f_delete(int key, string& file);  // Recursive delete
+        delete_t f_delete(int key, string& file);  // Recursive delete
         string f_search(int key, string& file);  // Recursive search
 
         inline void split_node(map<int,string> &currNode,map<int,string> &newNode); // split the node in two halfs
-        friend string get_free_file_name(bool,int=-1);
+        inline void merge_nodes(map<int,string>& left, map<int,string>& right,bool isLeaf, int sepKey);
+        void borrow_node(map<int,string>& childNode,map<int,string>& sibNode,bool isLeaf, int& sepKey, bool isRightSib);
+
+        friend string get_free_file_name(bool,int);
 };
