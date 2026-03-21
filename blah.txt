@@ -16,6 +16,7 @@ are added to the pq. Whenever we want to insert an element, we will do pq.pop() 
 delete a file, we will add the integer to the pq.
 
 We will make 2 folders, one to store node txt files and the other to store sql row files.
+which are index and data respectively
 
 If the node is p1 k1 p2 k2 ... pn, then, max(p_i)<k_i<=min(p_i+1).
 
