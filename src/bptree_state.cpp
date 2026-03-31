@@ -1,6 +1,6 @@
 #include "../include/bptree.hpp"
 
-BPlusTree::BPlusTree() : root(""), numRows(0), currLevel(0){
+BPlusTree::BPlusTree() : root(""), numRows(0), currLevel(0), indexCache(K, INDEX_PAGES) {
     if (!load_metadata()) init_fresh_state();
 }
 

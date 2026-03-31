@@ -26,57 +26,61 @@ string get_free_file_name(bool isData,int key)
     return fileName;
 }
     
-map<int,string> read_file(const string& fileName,bool& isLeaf)
+map<int,string> BPlusTree::read_file(const string& fileName, bool& isLeaf)
 {
-    ifstream file(fileName,ios::in);
-    file_opened(file,fileName);
+    // ifstream file(fileName,ios::in);
+    // file_opened(file,fileName);
 
-    map<int,string> currNode;
+    // map<int,string> currNode;
 
-    if(!(file>>isLeaf))
-        log_error("file_ops.cpp: read_file(): Corrupt file header in " + fileName);
-    string filePtrs;
+    // if(!(file>>isLeaf))
+    //     log_error("file_ops.cpp: read_file(): Corrupt file header in " + fileName);
+    // string filePtrs;
 
 
-    if(isLeaf==false)   // due to this we need to store it as 
-    {
-        if(!(file>>filePtrs))
-            log_error("file_ops.cpp: read_file(): Missing leftmost pointer in " + fileName);
-        currNode[0]=filePtrs;
-    }
+    // if(isLeaf==false)   // due to this we need to store it as 
+    // {
+    //     if(!(file>>filePtrs))
+    //         log_error("file_ops.cpp: read_file(): Missing leftmost pointer in " + fileName);
+    //     currNode[0]=filePtrs;
+    // }
         
-    int key;
-    while(file>>key>>filePtrs)
-    {
-        currNode[key]=filePtrs;
-    }
+    // int key;
+    // while(file>>key>>filePtrs)
+    // {
+    //     currNode[key]=filePtrs;
+    // }
     
+    // return currNode;
+    map<int,string> currNode;
+    indexCache.read(fileName, currNode, &isLeaf);
     return currNode;
 }
 
 
-bool write_file(const string& fileName,map<int,string>& currNode,bool isLeaf)
+bool BPlusTree::write_file(const string& fileName,map<int,string>& currNode,bool isLeaf)
 {
-    ofstream file(fileName,ios::out);
-    file_opened(file,fileName);
+    // ofstream file(fileName,ios::out);
+    // file_opened(file,fileName);
 
-    file<<isLeaf<<endl;
+    // file<<isLeaf<<endl;
 
-    if(!isLeaf)
-    {
-        if(currNode.find(0)==currNode.end())
-            log_error("file_ops.cpp: write_file(): Not found currNode[0] in non Leaf node");
+    // if(!isLeaf)
+    // {
+    //     if(currNode.find(0)==currNode.end())
+    //         log_error("file_ops.cpp: write_file(): Not found currNode[0] in non Leaf node");
 
-        file<<currNode[0]<<endl;
-    }
+    //     file<<currNode[0]<<endl;
+    // }
 
-    for(const auto&[key,filePtr]:currNode)
-    {
-        if(!isLeaf && key==0)
-            continue;
+    // for(const auto&[key,filePtr]:currNode)
+    // {
+    //     if(!isLeaf && key==0)
+    //         continue;
 
-        file<<key<<endl<<filePtr<<endl;
-    }
+    //     file<<key<<endl<<filePtr<<endl;
+    // }
 
-    return true;
+    // return true;
+    return indexCache.write(fileName, currNode, isLeaf);
 }

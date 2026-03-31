@@ -284,5 +284,5 @@ void LRU_K<T>::flush_all() {
     }
 }
 
-template class LRU_K<map<int, string>>;
-template class LRU_K<vector<string>>;
+template class LRU_K<map<int, string>>; // cache for index
+template class LRU_K<vector<string>>;   // cache for data rows
