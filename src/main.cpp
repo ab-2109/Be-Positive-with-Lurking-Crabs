@@ -2,6 +2,7 @@
 #include <signal.h>
 
 priority_queue<int> BPlusTree::availPointer;
+static LRU_K<vector<string>> dataCache(K, DATA_PAGES);
 
 static BPlusTree* g_tree = nullptr;
 
@@ -23,29 +24,35 @@ void ensure_storage_dirs(){
 }
 
 bool write_row_file(const string& filePath, int key, const vector<string>& fields){
-    ofstream out(filePath, ios::out);
-    if (!out.is_open()) {
-        cerr << "(ERROR) Failed to write row file: " << filePath << endl;
-        return false;
-    }
-    out << "key=" << key << endl;
-    for (int i = 0; i < fields.size(); i++) {
-        out << "field_" << (i + 1) << "=" << fields[i] << endl;
-    }
-    return true;
+    // ofstream out(filePath, ios::out);
+    // if (!out.is_open()) {
+    //     cerr << "(ERROR) Failed to write row file: " << filePath << endl;
+    //     return false;
+    // }
+    // for (size_t i = 0; i < fields.size(); i++) {
+    //     out << fields[i];
+    //     if (i + 1 < fields.size()) {
+    //         out << '\n';
+    //     }
+    // }
+    // return true;
+    return dataCache.write(filePath, fields, false);
 }
 
 vector<string> read_row_file_lines(const string& filePath){
-    ifstream in(filePath, ios::in);
-    vector<string> lines;
-    if (!in.is_open()) {
-        return lines;
-    }
-    string line;
-    while (getline(in, line)) {
-        lines.push_back(line);
-    }
-    return lines;
+    // ifstream in(filePath, ios::in);
+    // vector<string> lines;
+    // if (!in.is_open()) {
+    //     return lines;
+    // }
+    // string line;
+    // while (getline(in, line)) {
+    //     lines.push_back(line);
+    // }
+    // return lines;
+    vector<string> currData;
+    dataCache.read(filePath, currData, nullptr);
+    return currData;
 }
 
 vector<string> deterministic_fields(int key){
