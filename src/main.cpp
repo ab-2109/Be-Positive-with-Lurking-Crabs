@@ -115,6 +115,8 @@ int main(){
 
     signal(SIGINT, handle_interrupt);
 
+    g_dataCache = new LRU_K<vector<string>>(K, DATA_PAGES);
+
     ensure_storage_dirs();
     g_tree = new BPlusTree();
     BPlusTree& tree = *g_tree;
