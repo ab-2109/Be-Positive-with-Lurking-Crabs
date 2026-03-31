@@ -11,6 +11,10 @@
 #include <vector>
 using namespace std;
 
+#define K (int)2        // this is the value of K for the LRU-K class
+#define INDEX_PAGES (int)100
+#define DATA_PAGES (int)1000
+
 
 template<typename T>
 class LRU_K{

@@ -4,6 +4,7 @@
 #include <bits/stdc++.h>
 #include <fstream>
 #include <filesystem>
+#include "lru_k.hpp"
 
 
 using namespace std;
@@ -42,11 +43,6 @@ inline void file_opened(const StreamType& file, string_view fileName)
 }
 
 void log_error(string_view msg);
-
-map<int,string> read_file(const string& fileName, bool& isLeaf);
-
-bool write_file(const string& fileName, map<int,string>& currNode, bool isLeaf);
-
 string get_free_file_name(bool isData,int key=-1);
 
 
@@ -80,5 +76,9 @@ class BPlusTree{
         bool load_metadata();
         void store_metadata() const;
 
+        map<int,string> read_file(const string& fileName, bool& isLeaf);
+        bool write_file(const string& fileName, map<int,string>& currNode, bool isLeaf);
+        LRU_K<map<int, string>> indexCache;  // Cache for index nodes
+        
         friend string get_free_file_name(bool,int);
 };
