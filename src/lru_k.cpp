@@ -3,6 +3,7 @@
 template <typename T>
 LRU_K<T>::~LRU_K() {
     flush_all();
+    print_stats();
 }
 
 template <typename T>
@@ -10,7 +11,7 @@ void LRU_K<T>::touch(Frame& frame) {
     ++accessClock;
     frame.lastAccess = accessClock;
     frame.history.push_back(accessClock);
-    while (frame.history.size() > static_cast<size_t>(K)) {
+    while (frame.history.size() > static_cast<size_t>(k_param)) {
         frame.history.pop_front();
     }
 }
@@ -25,7 +26,7 @@ string LRU_K<T>::pick_victim() const {
     size_t victimLastAccess = 0;
 
     for (const auto& [fileName, frame] : cache) {
-        bool underSampled = frame.history.size() < static_cast<size_t>(K);
+        bool underSampled = frame.history.size() < static_cast<size_t>(k_param);
         size_t distance = 0;
         if (!underSampled) {
             distance = accessClock - frame.history.front();
@@ -180,7 +181,7 @@ bool LRU_K<T>::evict_if_needed() {
 
     string victim = pick_victim();
     if (victim.empty()) return true;
-    
+
     auto it = cache.find(victim);
     if (it == cache.end()) return true;
     if (!flush_to_disk(victim, it->second)) return false;
@@ -190,8 +191,10 @@ bool LRU_K<T>::evict_if_needed() {
 
 template <typename T>
 bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
+    ++totalReads;
     auto it = cache.find(fileName);
     if (it != cache.end()) {
+        ++readHits;
         touch(it->second);
         out = it->second.data;
         if constexpr (is_same_v<T, map<int, string>>) {
@@ -227,6 +230,7 @@ bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
 
 template <typename T>
 bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
+    ++totalWrites;
     if (page <= 0) {
         Frame direct;
         direct.data = value;
@@ -257,6 +261,7 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
         return true;
     }
 
+    ++writeHits;
     it->second.data = value;
     it->second.dirty = true;
     if constexpr (is_same_v<T, map<int, string>>) {
@@ -282,6 +287,34 @@ void LRU_K<T>::flush_all() {
     for (auto& [fileName, frame] : cache) {
         flush_to_disk(fileName, frame);
     }
+}
+
+template <typename T>
+void LRU_K<T>::print_stats() const {
+    const char* cacheType = "Unknown Cache";
+    if constexpr (is_same_v<T, map<int, string>>) {
+        cacheType = "Index Cache";
+    } else if constexpr (is_same_v<T, vector<string>>) {
+        cacheType = "Data Cache";
+    }
+
+    long long totalAccess = totalReads + totalWrites;
+    long long totalHits = readHits + writeHits;
+    double totalHitRatio = (totalAccess > 0) ? (100.0 * totalHits / totalAccess) : 0.0;
+    double readHitRatio = (totalReads > 0) ? (100.0 * readHits / totalReads) : 0.0;
+    double writeHitRatio = (totalWrites > 0) ? (100.0 * writeHits / totalWrites) : 0.0;
+
+    cout << "\n===== " << cacheType << " Statistics =====\n";
+    cout << "Total Reads:       " << totalReads << "\n";
+    cout << "Total Writes:      " << totalWrites << "\n";
+    cout << "Read Hits:         " << readHits << "\n";
+    cout << "Write Hits:        " << writeHits << "\n";
+    cout << "Read Hit Ratio:    " << fixed << setprecision(2) << readHitRatio << "%\n";
+    cout << "Write Hit Ratio:   " << fixed << setprecision(2) << writeHitRatio << "%\n";
+    cout << "Total Access:      " << totalAccess << "\n";
+    cout << "Total Hits:        " << totalHits << "\n";
+    cout << "Total Hit Ratio:   " << fixed << setprecision(2) << totalHitRatio << "%\n";
+    cout << "====================================\n";
 }
 
 template class LRU_K<map<int, string>>; // cache for index

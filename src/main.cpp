@@ -2,7 +2,7 @@
 #include <signal.h>
 
 priority_queue<int> BPlusTree::availPointer;
-static LRU_K<vector<string>> dataCache(K, DATA_PAGES);
+static LRU_K<vector<string>>* g_dataCache = nullptr;
 
 static BPlusTree* g_tree = nullptr;
 
@@ -13,8 +13,16 @@ static void destroy_tree(){
     }
 }
 
+static void destroy_data_cache(){
+    if (g_dataCache != nullptr) {
+        delete g_dataCache;
+        g_dataCache = nullptr;
+    }
+}
+
 static void handle_interrupt(int signum){
     destroy_tree();
+    destroy_data_cache();
     exit(0);
 }
 
@@ -36,7 +44,8 @@ bool write_row_file(const string& filePath, int key, const vector<string>& field
     //     }
     // }
     // return true;
-    return dataCache.write(filePath, fields, false);
+    if (g_dataCache == nullptr) return false;
+    return g_dataCache->write(filePath, fields, false);
 }
 
 vector<string> read_row_file_lines(const string& filePath){
@@ -50,10 +59,12 @@ vector<string> read_row_file_lines(const string& filePath){
     //     lines.push_back(line);
     // }
     // return lines;
+    if (g_dataCache == nullptr) return {};
     vector<string> currData;
-    dataCache.read(filePath, currData, nullptr);
+    g_dataCache->read(filePath, currData, nullptr);
     return currData;
 }
+
 
 vector<string> deterministic_fields(int key){
     return {
@@ -194,5 +205,6 @@ int main(){
         }
     }
     destroy_tree();
+    destroy_data_cache();
     return 0;
 }

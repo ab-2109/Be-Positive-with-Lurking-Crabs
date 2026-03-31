@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <deque>
 #include <fstream>
+#include <iomanip>
 #include <limits>
 #include <map>
 #include <string>
@@ -32,10 +33,16 @@ class LRU_K{
         deque<size_t> history;
     };
 
-    int K;
+    int k_param;
     int page;
     size_t accessClock;
     unordered_map<string, Frame> cache;
+    
+    // Statistics tracking
+    long long totalReads = 0;
+    long long totalWrites = 0;
+    long long readHits = 0;
+    long long writeHits = 0;
 
     void touch(Frame& frame);
     bool evict_if_needed();
@@ -47,11 +54,11 @@ class LRU_K{
     public:
 
     LRU_K(int kVal,int pageVal)
-    :K(kVal)
+    :k_param(kVal)
     ,page(pageVal)
     ,accessClock(0)
     {
-        K = max(1, K);
+        k_param = max(1, k_param);
         page = max(0, page);
     }
 
@@ -72,6 +79,7 @@ class LRU_K{
 
     bool flush(const string& fileName);
     void flush_all();
+    void print_stats() const;
 
     
 };
