@@ -1,19 +1,14 @@
 #include "../include/bptree.hpp"
 
-BPlusTree::BPlusTree() : root(""), numRows(0), currLevel(0)
-{
-    if (!load_metadata()) {
-        init_fresh_state();
-    }
+BPlusTree::BPlusTree() : root(""), numRows(0), currLevel(0){
+    if (!load_metadata()) init_fresh_state();
 }
 
-BPlusTree::~BPlusTree()
-{
+BPlusTree::~BPlusTree(){
     store_metadata();
 }
 
-void BPlusTree::init_fresh_state()
-{
+void BPlusTree::init_fresh_state(){
     root = "";
     numRows = 0;
     currLevel = 0;
@@ -26,8 +21,7 @@ void BPlusTree::init_fresh_state()
     }
 }
 
-bool BPlusTree::load_metadata()
-{
+bool BPlusTree::load_metadata(){
     if (!filesystem::exists(METADATA_FILE)) {
         return false;
     }
@@ -68,8 +62,7 @@ bool BPlusTree::load_metadata()
     return true;
 }
 
-void BPlusTree::store_metadata() const
-{
+void BPlusTree::store_metadata() const{
     ofstream file(METADATA_FILE, ios::out | ios::trunc);
     if (!file.is_open()) {
         cerr << "(ERROR) Failed to store metadata in " << METADATA_FILE << endl;
