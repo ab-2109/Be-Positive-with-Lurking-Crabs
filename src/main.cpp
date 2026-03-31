@@ -1,13 +1,28 @@
 #include "../include/bptree.hpp"
+#include <signal.h>
 
 priority_queue<int> BPlusTree::availPointer;
 
- void ensure_storage_dirs(){
+static BPlusTree* g_tree = nullptr;
+
+static void destroy_tree(){
+    if (g_tree != nullptr) {
+        delete g_tree;
+        g_tree = nullptr;
+    }
+}
+
+static void handle_interrupt(int signum){
+    destroy_tree();
+    exit(0);
+}
+
+void ensure_storage_dirs(){
     filesystem::create_directories("Data");
     filesystem::create_directories("Index");
 }
 
- bool write_row_file(const string& filePath, int key, const vector<string>& fields){
+bool write_row_file(const string& filePath, int key, const vector<string>& fields){
     ofstream out(filePath, ios::out);
     if (!out.is_open()) {
         cerr << "(ERROR) Failed to write row file: " << filePath << endl;
@@ -20,7 +35,7 @@ priority_queue<int> BPlusTree::availPointer;
     return true;
 }
 
- vector<string> read_row_file_lines(const string& filePath){
+vector<string> read_row_file_lines(const string& filePath){
     ifstream in(filePath, ios::in);
     vector<string> lines;
     if (!in.is_open()) {
@@ -33,7 +48,7 @@ priority_queue<int> BPlusTree::availPointer;
     return lines;
 }
 
- vector<string> deterministic_fields(int key){
+vector<string> deterministic_fields(int key){
     return {
         "name=user_" + to_string(key),
         "dept=dept_" + to_string(key % 69),
@@ -79,8 +94,12 @@ bool add_multiple_rows(BPlusTree& tree, int totalRows){
 int main(){
     ios::sync_with_stdio(false);
     cin.tie(&cout);
+
+    signal(SIGINT, handle_interrupt);
+
     ensure_storage_dirs();
-    BPlusTree tree;
+    g_tree = new BPlusTree();
+    BPlusTree& tree = *g_tree;
     while (true) {
         cout << "\n===== B+ Tree Menu =====\n";
         cout << "1. Insert"<<endl;
@@ -167,5 +186,6 @@ int main(){
             cout << "Invalid choice. Try again."<<endl;
         }
     }
+    destroy_tree();
     return 0;
 }

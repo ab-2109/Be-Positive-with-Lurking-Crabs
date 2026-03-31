@@ -55,20 +55,15 @@ class BPlusTree{
     public:
         static constexpr int N=8;
         static constexpr int MAX_LEVELS=6;
+        static constexpr int MAX_INDEX_FILES = 37449;
+        static constexpr const char* METADATA_FILE = "metadata.txt";
         string root;
         int numRows;
         int currLevel;
         static priority_queue<int> availPointer;
 
-        BPlusTree()
-        :root("")
-        ,numRows(0)
-        ,currLevel(0){
-            for(int i=1; i<=37449; i++){
-                availPointer.push(i);
-            }
-        }
-        ~BPlusTree()=default;
+        BPlusTree();
+        ~BPlusTree();
 
         string Search(int key);  // Search wrapper: Returns file name of the found row, "" if not found
         bool Insert(int key);  // Insert wrapper: Returns true on success
@@ -81,6 +76,9 @@ class BPlusTree{
         inline void split_node(map<int,string> &currNode,map<int,string> &newNode); // split the node in two halfs
         inline void merge_nodes(map<int,string>& left, map<int,string>& right,bool isLeaf, int sepKey);
         void borrow_node(map<int,string>& childNode,map<int,string>& sibNode,bool isLeaf, int& sepKey, bool isRightSib);
+        void init_fresh_state();
+        bool load_metadata();
+        void store_metadata() const;
 
         friend string get_free_file_name(bool,int);
 };
