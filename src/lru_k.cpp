@@ -176,23 +176,14 @@ bool LRU_K<T>::flush_to_disk(const string& fileName, Frame& frame) {
 
 template <typename T>
 bool LRU_K<T>::evict_if_needed() {
-    if (page <= 0 || cache.size() < static_cast<size_t>(page)) {
-        return true;
-    }
+    if (page <= 0 || cache.size() < static_cast<size_t>(page)) return true;
 
     string victim = pick_victim();
-    if (victim.empty()) {
-        return true;
-    }
-
+    if (victim.empty()) return true;
+    
     auto it = cache.find(victim);
-    if (it == cache.end()) {
-        return true;
-    }
-
-    if (!flush_to_disk(victim, it->second)) {
-        return false;
-    }
+    if (it == cache.end()) return true;
+    if (!flush_to_disk(victim, it->second)) return false;
     cache.erase(it);
     return true;
 }
