@@ -1,7 +1,7 @@
 #include "../include/bptree.hpp"
 #include <signal.h>
 
-priority_queue<int> BPlusTree::availPointer;
+priority_queue<int, vector<int>, greater<int>>BPlusTree::availPointer;
 static LRU_K<vector<string>>* g_dataCache = nullptr;
 
 static BPlusTree* g_tree = nullptr;

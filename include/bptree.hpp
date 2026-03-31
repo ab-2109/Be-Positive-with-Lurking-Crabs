@@ -56,7 +56,7 @@ class BPlusTree{
         string root;
         int numRows;
         int currLevel;
-        static priority_queue<int> availPointer;
+        static priority_queue<int, vector<int>, greater<int>> availPointer;
 
         BPlusTree();
         ~BPlusTree();

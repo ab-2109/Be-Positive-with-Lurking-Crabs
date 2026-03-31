@@ -13,7 +13,7 @@ void BPlusTree::init_fresh_state(){
     numRows = 0;
     currLevel = 0;
 
-    priority_queue<int> empty;
+    priority_queue<int, vector<int>, greater<int>> empty;
     swap(availPointer, empty);
 
     for (int i = 1; i <= MAX_INDEX_FILES; i++) {
@@ -46,7 +46,7 @@ bool BPlusTree::load_metadata(){
         return false;
     }
 
-    priority_queue<int> loadedAvail;
+    priority_queue<int, vector<int>, greater<int>> loadedAvail;
     for (size_t i = 0; i < pqSize; i++) {
         int id = 0;
         if (!(file >> id)) {
@@ -72,7 +72,7 @@ void BPlusTree::store_metadata() const{
     file << root << '\n';
     file << numRows << ' ' << currLevel << '\n';
 
-    priority_queue<int> copyQueue = availPointer;
+    priority_queue<int, vector<int>, greater<int>> copyQueue = availPointer;
     file << copyQueue.size() << '\n';
     while (!copyQueue.empty()) {
         file << copyQueue.top() << ' ';

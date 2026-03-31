@@ -1,0 +1,9 @@
+# Build directory
+build/
+
+# Database metadata
+metadata.txt
+
+# Database storage directories
+Data/
+Index/
