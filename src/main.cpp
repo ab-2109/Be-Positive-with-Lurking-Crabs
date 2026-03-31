@@ -99,9 +99,11 @@ int main(){
             int key;
             cout << "Enter key (>0): ";
             cin >> key;
-            while(key <= 0){
-                cout << "Invalid key. Enter a positive integer: ";
-                cin >> key;
+            if(!cin || key <= 0){
+                cout << "Invalid key. Please enter a positive integer."<<endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                continue;
             }
             auto fields = deterministic_fields(key);
             if (!tree.Insert(key)) {
@@ -118,9 +120,11 @@ int main(){
             int key;
             cout << "Enter key to search: ";
             cin >> key;
-            while(key <= 0){
-                cout << "Invalid key. Enter a positive integer: ";
-                cin >> key;
+            if(!cin || key <= 0){
+                cout << "Invalid key. Please enter a positive integer."<<endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                continue;
             }
 
             string dataFile = tree.Search(key);
@@ -140,10 +144,12 @@ int main(){
             int key;
             cout << "Enter key to delete: ";
             cin >> key;
-            while(key <= 0){
-                cout << "Invalid key. Enter a positive integer: ";
-                cin >> key;
-            }
+            if(!cin || key <= 0){
+                cout << "Invalid key. Please enter a positive integer."<<endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                continue;
+                }
             if (!tree.Delete(key)) {
                 print_failure_from_bp_error();
                 continue;
