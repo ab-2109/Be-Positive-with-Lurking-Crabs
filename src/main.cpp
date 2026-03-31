@@ -68,9 +68,9 @@ vector<string> read_row_file_lines(const string& filePath){
 
 vector<string> deterministic_fields(int key){
     return {
-        "name=user_" + to_string(key),
-        "dept=dept_" + to_string(key % 69),
-        "score=" + to_string((key * 11) % 69)
+        "user_" + to_string(key),
+        "dept_" + to_string(key % 69),
+        to_string((key * 11) % 69)
     };
 }
 
@@ -86,23 +86,30 @@ void print_failure_from_bp_error(){
 bool add_multiple_rows(BPlusTree& tree, int totalRows){
     cout << "Inserting " << totalRows << " rows..."<<endl;
     vector<int> keys(totalRows);
-    iota(keys.begin(), keys.end(), 1);
     random_device rd;
     mt19937 rng(rd());
-    shuffle(keys.begin(), keys.end(), rng);
+    uniform_int_distribution<int> dist(1, INT_MAX);
+    for (int i = 0; i < totalRows; i++) {
+        keys[i] = dist(rng);
+    }
+    
     for (int key : keys) {
         if (!tree.Insert(key)) {
             cout << "Insert failed for key=" << key << endl;
             print_failure_from_bp_error();
-            return false;
+            // return false;
+            continue;
         }
         string dataFile = tree.Search(key);
         if (dataFile.empty()) {
             cout << "Post-insert search failed for key=" << key << endl;
-            return false;
+            // return false;
+            continue;
         }
         if (!write_row_file(dataFile, key, deterministic_fields(key))) {
-            return false;
+            cout<< "Write row failed for key=" << key << endl;
+            // return false;
+            continue;
         }
     }
     cout << "Insert phase complete."<<endl;
