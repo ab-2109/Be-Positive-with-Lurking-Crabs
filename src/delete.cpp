@@ -60,23 +60,37 @@ void BPlusTree::borrow_node(map<int,string>& childNode,map<int,string>& sibNode,
     }
 }
 
-delete_t BPlusTree::f_delete(int key, string &file)
+delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shared_mutex>>& path_locks)
 {
     bool isLeaf;
     map<int, string> currNode = read_file(file, isLeaf);
     const int MIN_KEYS = (N + 1) / 2; // ceil(N/2) = 4 for N=8
 
+    int num_keys = isLeaf ? currNode.size() : currNode.size() - 1;
+    bool isSafe = (num_keys > MIN_KEYS);
+
+    if (isSafe && path_locks.size() > 1) {
+        while (path_locks.size() > 1) {
+            path_locks.front().unlock();
+            path_locks.pop_front();
+        }
+    }
+
     if (isLeaf)
     {
+        auto tgt = currNode.find(key);
+        if (tgt == currNode.end()) {
+            return {false, false, -1};
+        }
 
-        remove(currNode[key].c_str()); // delete the actual row data file
-        currNode.erase(key);
+        remove(tgt->second.c_str()); // delete the actual row data file
+        currNode.erase(tgt);
         write_file(file, currNode, true);
 
         if (real_keys(currNode, true) >= MIN_KEYS)
-            return {false, -1}; // healthy — nothing for parent to do
+            return {true, false, -1}; // healthy — nothing for parent to do
 
-        return {true, -1}; // removedSepKey unused at leaf level
+        return {true, true, -1}; // removedSepKey unused at leaf level
     }
 
     // internal node
@@ -86,10 +100,15 @@ delete_t BPlusTree::f_delete(int key, string &file)
     auto it = prev(currNode.upper_bound(key));
     string childFile = it->second;
 
-    delete_t result = f_delete(key, childFile);
+    auto childLatch = BPlusTree::get_page_latch(childFile);
+    unique_lock<shared_mutex> childLock(*childLatch); total_x_latches++;
+    path_locks.push_back(move(childLock));
 
+    delete_t result = f_delete(key, childFile, path_locks);
+
+    if (!result.success) return result;
     if (!result.didMerge)
-        return {false, -1};
+        return {true, false, -1};
 
     // if the child node is deleted then we dont need the seperator key the childfile it was pointing is deleted in recursive call
     // so right not it is dangling
@@ -98,7 +117,7 @@ delete_t BPlusTree::f_delete(int key, string &file)
     if (real_keys(currNode, false) >= MIN_KEYS)
     {
         write_file(file, currNode, false);
-        return {false, -1};
+        return {true, false, -1};
     }
 
     bool childIsLeaf;
@@ -113,6 +132,9 @@ delete_t BPlusTree::f_delete(int key, string &file)
 
     if (hasRight) {
         string sibFile = rightIt->second;
+        auto sibLatch = BPlusTree::get_page_latch(sibFile);
+        unique_lock<shared_mutex> sibLock(*sibLatch); total_x_latches++;
+
         bool sibIsLeaf;
         map<int,string> sibNode = read_file(sibFile, sibIsLeaf);
         int sepKey = rightIt->first;
@@ -125,7 +147,7 @@ delete_t BPlusTree::f_delete(int key, string &file)
             write_file(childFile, childNode, childIsLeaf);
             write_file(sibFile,   sibNode,   sibIsLeaf);
             write_file(file,      currNode,  false);
-            return {false, -1};
+            return {true, false, -1};
         }
 
         merge_nodes(childNode, sibNode, childIsLeaf, sepKey);
@@ -134,11 +156,14 @@ delete_t BPlusTree::f_delete(int key, string &file)
         reclaim_file_num(sibFile);
         write_file(childFile, childNode, childIsLeaf);
         write_file(file, currNode, false);
-        return {real_keys(currNode, false) < MIN_KEYS, sepKey};
+        return {true, real_keys(currNode, false) < MIN_KEYS, sepKey};
     }
 
     if (hasLeft) {
         string sibFile = leftIt->second;
+        auto sibLatch = BPlusTree::get_page_latch(sibFile);
+        unique_lock<shared_mutex> sibLock(*sibLatch); total_x_latches++;
+
         bool sibIsLeaf;
         map<int,string> sibNode = read_file(sibFile, sibIsLeaf);
         int sepKey = it->first;
@@ -151,7 +176,7 @@ delete_t BPlusTree::f_delete(int key, string &file)
             write_file(sibFile,   sibNode,   sibIsLeaf);
             write_file(childFile, childNode, childIsLeaf);
             write_file(file,      currNode,  false);
-            return {false, -1};
+            return {true, false, -1};
         }
 
         merge_nodes(sibNode, childNode, childIsLeaf, sepKey);
@@ -160,46 +185,76 @@ delete_t BPlusTree::f_delete(int key, string &file)
         reclaim_file_num(childFile);
         write_file(sibFile, sibNode, sibIsLeaf);
         write_file(file, currNode, false);
-        return {real_keys(currNode, false) < MIN_KEYS, sepKey};
+        return {true, real_keys(currNode, false) < MIN_KEYS, sepKey};
     }
 
     log_error("delete.cpp(): f_delete: corrupt tree — node has no siblings");
-    return {false, -1};
+    return {true, false, -1};
 }
 
 
 bool BPlusTree::Delete(int key)
 {
-    if (Search(key) == "")
-    {
+    string currentRoot;
+    unique_lock<shared_mutex> rootLock;
+    
+    while(true){
+        {
+            lock_guard<mutex> m(metaMutex);
+            currentRoot = root;
+            if (currentRoot.empty()) {
+                BP_ERROR=KEY_NOT_EXISTS;
+                return false;
+            }
+        }
+        auto latch = BPlusTree::get_page_latch(currentRoot);
+        rootLock = unique_lock<shared_mutex>(*latch); total_x_latches++;
+        {
+            lock_guard<mutex> m(metaMutex);
+            if (root == currentRoot) break;
+        }
+        rootLock.unlock();
+    }
+
+    deque<unique_lock<shared_mutex>> path_locks;
+    path_locks.push_back(move(rootLock));
+
+    delete_t result = f_delete(key, currentRoot, path_locks);
+
+    if (!result.success) {
         BP_ERROR=KEY_NOT_EXISTS;
-        cerr << "(WARNING) Delete(): Key " << key << " not present\n";  // to be removed later on.
+        cerr << "(WARNING) Delete(): Key " << key << " not present\n";
         return false;
     }
 
-    numRows--;
-    delete_t result = f_delete(key, root);
+    numRows.fetch_sub(1);
 
     if (!result.didMerge)
         return true;
 
     bool rootIsLeaf;
-    map<int, string> rootNode = read_file(root, rootIsLeaf);
+    map<int, string> rootNode = read_file(currentRoot, rootIsLeaf);
 
     if (!rootIsLeaf && real_keys(rootNode, false)==EMPTY_NODE_VAL)
     {
         string newRoot=rootNode[EMPTY_NODE_VAL];
-        reclaim_file_num(root);
-        root = newRoot;
-        currLevel--; // mirror of currLevel++ in Insert
+        reclaim_file_num(currentRoot);
+        {
+            lock_guard<mutex> m(metaMutex);
+            root = newRoot;
+        }
+        currLevel.fetch_sub(1); // mirror of currLevel++ in Insert
     }
 
-    if (numRows == 0)
+    if (numRows.load() == 0)
     {
-        reclaim_file_num(root);
+        reclaim_file_num(currentRoot);
         
-        root = "";
-        currLevel = 0;
+        {
+            lock_guard<mutex> m(metaMutex);
+            root = "";
+        }
+        currLevel.store(0);
     }
 
     return true;

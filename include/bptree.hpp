@@ -4,6 +4,9 @@
 #include <bits/stdc++.h>
 #include <fstream>
 #include <filesystem>
+#include <shared_mutex>
+#include <atomic>
+#include <deque>
 #include "lru_k.hpp"
 
 
@@ -20,6 +23,7 @@ inline const map<BP_Error, string> g_ErrorMsg = {
 };
 
 typedef struct insert{
+    bool success;
     bool didSplit;
     int newFirstKey;
     string newFileName;
@@ -27,6 +31,7 @@ typedef struct insert{
 
 
 typedef struct deletion {
+    bool success;
     bool didMerge;       // mirror of didSplit
     int  removedSepKey;  // the separator key the parent must drop
 } delete_t;
@@ -54,19 +59,27 @@ class BPlusTree{
         static constexpr int MAX_INDEX_FILES = 37449;
         static constexpr const char* METADATA_FILE = "metadata.txt";
         string root;
-        int numRows;
-        int currLevel;
+        atomic<int> numRows;
+        atomic<int> currLevel;
         static priority_queue<int, vector<int>, greater<int>> availPointer;
+        static unordered_map<string, shared_ptr<shared_mutex>> pageLatches;
+        static mutex pageLatchMutex;
+        static mutex metaMutex;
+        static atomic<long long> total_s_latches;
+        static atomic<long long> total_x_latches;
 
         BPlusTree();
         ~BPlusTree();
 
+        static void print_latch_stats();
         string Search(int key);  // Search wrapper: Returns file name of the found row, "" if not found
         bool Insert(int key);  // Insert wrapper: Returns true on success
         bool Delete(int key);  // Delete wrapper: Returns true on success
     private:
-        insert_t f_insert(int key, string& file);  // Recursive insert
-        delete_t f_delete(int key, string& file);  // Recursive delete
+        static shared_ptr<shared_mutex> get_page_latch(const string& fileName);
+        string search_unlocked(int key);  // Search helper used when caller already holds tree latch
+        insert_t f_insert(int key, const string& file, deque<unique_lock<shared_mutex>>& path_locks);  // Recursive insert
+        delete_t f_delete(int key, const string& file, deque<unique_lock<shared_mutex>>& path_locks);  // Recursive delete
         string f_search(int key, string& file);  // Recursive search
 
         inline void split_node(map<int,string> &currNode,map<int,string> &newNode); // split the node in two halfs

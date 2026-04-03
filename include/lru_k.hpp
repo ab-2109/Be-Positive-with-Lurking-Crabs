@@ -10,6 +10,8 @@
 #include <string>
 #include <type_traits>
 #include <vector>
+#include <mutex>
+#include <atomic>
 using namespace std;
 
 #define K (int)2        // this is the value of K for the LRU-K class
@@ -31,18 +33,23 @@ class LRU_K{
         bool isLeaf = true; // meaningful only for index pages
         size_t lastAccess = 0;
         deque<size_t> history;
+        mutable mutex frameMutex;
     };
 
     int k_param;
     int page;
     size_t accessClock;
     unordered_map<string, Frame> cache;
+    mutable mutex cacheMapMutex;
     
     // Statistics tracking
     long long totalReads = 0;
     long long totalWrites = 0;
     long long readHits = 0;
     long long writeHits = 0;
+
+    mutable atomic<long long> map_latches{0};
+    mutable atomic<long long> frame_latches{0};
 
     void touch(Frame& frame);
     bool evict_if_needed();
@@ -67,10 +74,12 @@ class LRU_K{
 
     bool is_present(const string& fileName)
     {
+        lock_guard<mutex> lock(cacheMapMutex); map_latches++;
         return cache.find(fileName)!=cache.end();
     }
 
     size_t cache_size() const{
+        lock_guard<mutex> lock(cacheMapMutex); map_latches++;
         return cache.size();
     }
 

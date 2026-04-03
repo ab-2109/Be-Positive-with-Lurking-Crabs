@@ -177,6 +177,7 @@ bool LRU_K<T>::flush_to_disk(const string& fileName, Frame& frame) {
 
 template <typename T>
 bool LRU_K<T>::evict_if_needed() {
+    lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
     if (page <= 0 || cache.size() < static_cast<size_t>(page)) return true;
 
     string victim = pick_victim();
@@ -184,6 +185,7 @@ bool LRU_K<T>::evict_if_needed() {
 
     auto it = cache.find(victim);
     if (it == cache.end()) return true;
+    unique_lock<mutex> frameLock(it->second.frameMutex);
     if (!flush_to_disk(victim, it->second)) return false;
     cache.erase(it);
     return true;
@@ -191,22 +193,26 @@ bool LRU_K<T>::evict_if_needed() {
 
 template <typename T>
 bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
-    ++totalReads;
-    auto it = cache.find(fileName);
-    if (it != cache.end()) {
-        ++readHits;
-        touch(it->second);
-        out = it->second.data;
-        if constexpr (is_same_v<T, map<int, string>>) {
-            if (isLeafOut != nullptr) {
-                *isLeafOut = it->second.isLeaf;
+    {
+        lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
+        ++totalReads;
+        auto it = cache.find(fileName);
+        if (it != cache.end()) {
+            lock_guard<mutex> frameLock(it->second.frameMutex); frame_latches++;
+            ++readHits;
+            touch(it->second);
+            out = it->second.data;
+            if constexpr (is_same_v<T, map<int, string>>) {
+                if (isLeafOut != nullptr) {
+                    *isLeafOut = it->second.isLeaf;
+                }
+            } else {
+                if (isLeafOut != nullptr) {
+                    *isLeafOut = true;
+                }
             }
-        } else {
-            if (isLeafOut != nullptr) {
-                *isLeafOut = true;
-            }
+            return true;
         }
-        return true;
     }
 
     Frame frame;
@@ -222,15 +228,21 @@ bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
     if (!evict_if_needed()) {
         return false;
     }
+    lock_guard<mutex> frameLock(frame.frameMutex); frame_latches++;
     touch(frame);
     out = frame.data;
-    cache[fileName] = move(frame);
+    lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
+    Frame& cached = cache[fileName];
+    cached.data = frame.data;
+    cached.dirty = frame.dirty;
+    cached.isLeaf = frame.isLeaf;
+    cached.lastAccess = frame.lastAccess;
+    cached.history = frame.history;
     return true;
 }
 
 template <typename T>
 bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
-    ++totalWrites;
     if (page <= 0) {
         Frame direct;
         direct.data = value;
@@ -243,54 +255,71 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
         return flush_to_disk(fileName, direct);
     }
 
-    auto it = cache.find(fileName);
-    if (it == cache.end()) {
-        if (!evict_if_needed()) {
-            return false;
+    {
+        lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
+        ++totalWrites;
+        auto it = cache.find(fileName);
+        if (it != cache.end()) {
+            lock_guard<mutex> frameLock(it->second.frameMutex); frame_latches++;
+            ++writeHits;
+            it->second.data = value;
+            it->second.dirty = true;
+            if constexpr (is_same_v<T, map<int, string>>) {
+                it->second.isLeaf = isLeaf;
+            } else {
+                it->second.isLeaf = true;
+            }
+            touch(it->second);
+            return true;
         }
-        Frame frame;
-        frame.data = value;
-        frame.dirty = true;
-        if constexpr (is_same_v<T, map<int, string>>) {
-            frame.isLeaf = isLeaf;
-        } else {
-            frame.isLeaf = true;
-        }
-        touch(frame);
-        cache[fileName] = move(frame);
-        return true;
     }
 
-    ++writeHits;
-    it->second.data = value;
-    it->second.dirty = true;
-    if constexpr (is_same_v<T, map<int, string>>) {
-        it->second.isLeaf = isLeaf;
-    } else {
-        it->second.isLeaf = true;
+    if (!evict_if_needed()) {
+        return false;
     }
-    touch(it->second);
+    Frame frame;
+    frame.data = value;
+    frame.dirty = true;
+    if constexpr (is_same_v<T, map<int, string>>) {
+        frame.isLeaf = isLeaf;
+    } else {
+        frame.isLeaf = true;
+    }
+    lock_guard<mutex> frameLock(frame.frameMutex); frame_latches++;
+    touch(frame);
+    lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
+    Frame& cached = cache[fileName];
+    cached.data = frame.data;
+    cached.dirty = frame.dirty;
+    cached.isLeaf = frame.isLeaf;
+    cached.lastAccess = frame.lastAccess;
+    cached.history = frame.history;
     return true;
 }
 
 template <typename T>
 bool LRU_K<T>::flush(const string& fileName) {
+    lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
     auto it = cache.find(fileName);
     if (it == cache.end()) {
         return true;
     }
+    lock_guard<mutex> frameLock(it->second.frameMutex); frame_latches++;
     return flush_to_disk(fileName, it->second);
 }
 
 template <typename T>
 void LRU_K<T>::flush_all() {
+    lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
     for (auto& [fileName, frame] : cache) {
+        lock_guard<mutex> frameLock(frame.frameMutex); frame_latches++;
         flush_to_disk(fileName, frame);
     }
 }
 
 template <typename T>
 void LRU_K<T>::print_stats() const {
+    lock_guard<mutex> lock(cacheMapMutex); map_latches++;
     const char* cacheType = "Unknown Cache";
     if constexpr (is_same_v<T, map<int, string>>) {
         cacheType = "Index Cache";
@@ -314,6 +343,8 @@ void LRU_K<T>::print_stats() const {
     cout << "Total Access:      " << totalAccess << "\n";
     cout << "Total Hits:        " << totalHits << "\n";
     cout << "Total Hit Ratio:   " << fixed << setprecision(2) << totalHitRatio << "%\n";
+    cout << "Map Latches:       " << map_latches.load() << "\n";
+    cout << "Frame Latches:     " << frame_latches.load() << "\n";
     cout << "====================================\n";
 }
 

@@ -1,5 +1,8 @@
 #include "../include/bptree.hpp"
 #include <signal.h>
+#include <atomic>
+#include <thread>
+#include <chrono>
 
 priority_queue<int, vector<int>, greater<int>>BPlusTree::availPointer;
 static LRU_K<vector<string>>* g_dataCache = nullptr;
@@ -116,6 +119,74 @@ bool add_multiple_rows(BPlusTree& tree, int totalRows){
     return true;
 }
 
+void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
+    if (numThreads <= 0 || opsPerThread <= 0) {
+        cout << "Thread count and operations must be positive." << endl;
+        return;
+    }
+
+    atomic<long long> insertOk(0), insertFail(0);
+    atomic<long long> deleteOk(0), deleteFail(0);
+    atomic<long long> searchHit(0), searchMiss(0);
+
+    auto worker = [&](int tid){
+        mt19937 rng(static_cast<unsigned>(chrono::steady_clock::now().time_since_epoch().count()) ^ static_cast<unsigned>(tid * 7919));
+        uniform_int_distribution<int> opDist(0, 99);
+        uniform_int_distribution<int> keyDist(1, INT_MAX);
+
+        for (int i = 0; i < opsPerThread; i++) {
+            int key = keyDist(rng);
+            int op = opDist(rng);
+
+            if (op < 45) {
+                if (tree.Insert(key)) {
+                    insertOk++;
+                    string dataFile = tree.Search(key);
+                    if (!dataFile.empty()) {
+                        write_row_file(dataFile, key, deterministic_fields(key));
+                    }
+                } else {
+                    insertFail++;
+                }
+            } else if (op < 80) {
+                string dataFile = tree.Search(key);
+                if (dataFile.empty()) {
+                    searchMiss++;
+                } else {
+                    searchHit++;
+                }
+            } else {
+                if (tree.Delete(key)) {
+                    deleteOk++;
+                } else {
+                    deleteFail++;
+                }
+            }
+        }
+    };
+
+    cout << "Starting concurrent stress: threads=" << numThreads
+         << ", ops/thread=" << opsPerThread << "..." << endl;
+
+    auto start = chrono::steady_clock::now();
+    vector<thread> threads;
+    threads.reserve(numThreads);
+    for (int i = 0; i < numThreads; i++) {
+        threads.emplace_back(worker, i + 1);
+    }
+    for (auto& t : threads) {
+        t.join();
+    }
+    auto end = chrono::steady_clock::now();
+
+    long long elapsedMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    cout << "Concurrent stress complete." << endl;
+    cout << "Elapsed: " << elapsedMs << " ms" << endl;
+    cout << "Insert  ok/fail: " << insertOk << "/" << insertFail << endl;
+    cout << "Delete  ok/fail: " << deleteOk << "/" << deleteFail << endl;
+    cout << "Search  hit/miss: " << searchHit << "/" << searchMiss << endl;
+}
+
 int main(){
     ios::sync_with_stdio(false);
     cin.tie(&cout);
@@ -133,12 +204,13 @@ int main(){
         cout << "2. Search"<<endl;
         cout << "3. Delete"<<endl;
         cout << "4. Add a number of rows"<<endl;
-        cout << "5. Exit"<<endl;
+        cout << "5. Concurrent stress test"<<endl;
+        cout << "6. Exit"<<endl;
         cout << "Enter choice: ";
         int choice;
         cin>>choice;
-        while(choice < 1 || choice > 5){
-            cout << "Invalid choice. Enter a number between 1 and 5: ";
+        while(choice < 1 || choice > 6){
+            cout << "Invalid choice. Enter a number between 1 and 6: ";
             cin >> choice;
         }
         if (choice == 1) {
@@ -207,6 +279,20 @@ int main(){
             cin >> tmp;
             add_multiple_rows(tree, tmp);
         } else if (choice == 5) {
+            int numThreads = 0;
+            int opsPerThread = 0;
+            cout << "Enter number of threads: ";
+            cin >> numThreads;
+            cout << "Enter operations per thread: ";
+            cin >> opsPerThread;
+            if (!cin) {
+                cout << "Invalid input." << endl;
+                cin.clear();
+                cin.ignore(numeric_limits<streamsize>::max(), '\n');
+                continue;
+            }
+            run_concurrent_stress(tree, numThreads, opsPerThread);
+        } else if (choice == 6) {
             cout << "Exiting bitches bbye!!!."<<endl;
             break;
         } else {

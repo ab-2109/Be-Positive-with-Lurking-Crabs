@@ -1,0 +1,3 @@
+Bind the key values to say 1 to 3lakh 
+because else, keys are so sparsely distributed that search 
+and delete will always fail.
