@@ -1,0 +1,109 @@
+K,IdxPages,DataPages,Threads,TotalOps,Ins%,Srch%,Del%,TimeMs,InsOk,InsFail,DelOk,DelFail,SrchHit,SrchMiss,AvgInsMs,AvgSrchMs,AvgDelMs
+Starting concurrent stress: threads=4, ops/thread=25000...
+2,100,1000,4,100000,45,35,20,33072,40378,4493,2001,18014,3500,31614,1.99159,0.742734,0.826417
+
+--- B+ Tree Latch Statistics ---
+Total S-Latches (Tree): 431949
+Total X-Latches (Tree): 371982
+Total Unique Page Latches Created: 8071
+--------------------------------
+
+===== Index Cache Statistics =====
+Total Reads:       803957
+Total Writes:      59219
+Read Hits:         447702
+Write Hits:        34926
+Read Hit Ratio:    55.69%
+Write Hit Ratio:   58.98%
+Total Access:      863176
+Total Hits:        482628
+Total Hit Ratio:   55.91%
+Map Latches:       1624274
+Frame Latches:     863278
+====================================
+
+===== Data Cache Statistics =====
+Total Reads:       0
+Total Writes:      40378
+Read Hits:         0
+Write Hits:        0
+Read Hit Ratio:    0.00%
+Write Hit Ratio:   0.00%
+Total Access:      40378
+Total Hits:        0
+Total Hit Ratio:   0.00%
+Map Latches:       121136
+Frame Latches:     41381
+====================================
+Starting concurrent stress: threads=8, ops/thread=12500...
+1,50,500,8,100000,33,34,33,29526,30528,2383,2411,30692,2456,31530,3.5026,1.09777,2.49762
+
+--- B+ Tree Latch Statistics ---
+Total S-Latches (Tree): 362039
+Total X-Latches (Tree): 371441
+Total Unique Page Latches Created: 5961
+--------------------------------
+
+===== Index Cache Statistics =====
+Total Reads:       733503
+Total Writes:      45559
+Read Hits:         440382
+Write Hits:        39472
+Read Hit Ratio:    60.04%
+Write Hit Ratio:   86.64%
+Total Access:      779062
+Total Hits:        479854
+Total Hit Ratio:   61.59%
+Map Latches:       1377480
+Frame Latches:     779115
+====================================
+
+===== Data Cache Statistics =====
+Total Reads:       0
+Total Writes:      30528
+Read Hits:         0
+Write Hits:        0
+Read Hit Ratio:    0.00%
+Write Hit Ratio:   0.00%
+Total Access:      30528
+Total Hits:        0
+Total Hit Ratio:   0.00%
+Map Latches:       91586
+Frame Latches:     31031
+====================================
+Starting concurrent stress: threads=1, ops/thread=100000...
+5,500,5000,1,100000,80,10,10,135813,66175,13746,1765,8204,1792,8318,1.58259,0.439436,0.48
+
+--- B+ Tree Latch Statistics ---
+Total S-Latches (Tree): 459447
+Total X-Latches (Tree): 546220
+Total Unique Page Latches Created: 13328
+--------------------------------
+
+===== Index Cache Statistics =====
+Total Reads:       1005696
+Total Writes:      95771
+Read Hits:         177458
+Write Hits:        70776
+Read Hit Ratio:    17.65%
+Write Hit Ratio:   73.90%
+Total Access:      1101467
+Total Hits:        248234
+Total Hit Ratio:   22.54%
+Map Latches:       2807935
+Frame Latches:     1101967
+====================================
+
+===== Data Cache Statistics =====
+Total Reads:       0
+Total Writes:      66175
+Read Hits:         0
+Write Hits:        2
+Read Hit Ratio:    0.00%
+Write Hit Ratio:   0.00%
+Total Access:      66175
+Total Hits:        2
+Total Hit Ratio:   0.00%
+Map Latches:       198523
+Frame Latches:     71175
+====================================

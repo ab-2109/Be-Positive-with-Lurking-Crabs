@@ -4,8 +4,48 @@
 #include <thread>
 #include <chrono>
 
+int K;
+int INDEX_PAGES;
+int DATA_PAGES;
+
+static vector<string> parse_csv_line(const string& line, char delimiter){
+    vector<string> out;
+    string field;
+    bool inQuotes = false;
+
+    for (size_t i = 0; i < line.size(); i++) {
+        char c = line[i];
+        if (inQuotes) {
+            if (c == '"') {
+                if (i + 1 < line.size() && line[i + 1] == '"') {
+                    field.push_back('"');
+                    i++;
+                } else {
+                    inQuotes = false;
+                }
+            } else {
+                field.push_back(c);
+            }
+        } else {
+            if (c == '"') {
+                inQuotes = true;
+            } else if (c == delimiter) {
+                out.push_back(field);
+                field.clear();
+            } else {
+                field.push_back(c);
+            }
+        }
+    }
+    out.push_back(field);
+    return out;
+}
+
+
 priority_queue<int, vector<int>, greater<int>>BPlusTree::availPointer;
 static LRU_K<vector<string>>* g_dataCache = nullptr;
+
+static constexpr int MAX_KEY_VALUE = 200000;
 
 static BPlusTree* g_tree = nullptr;
 
@@ -51,6 +91,102 @@ bool write_row_file(const string& filePath, int key, const vector<string>& field
     return g_dataCache->write(filePath, fields, false);
 }
 
+static bool load_dataset_into_tree(BPlusTree& tree, const string& csvPath){
+    ifstream in(csvPath);
+    if (!in.is_open()) {
+        cout << "(ERROR) Could not open dataset: " << csvPath << endl;
+        return false;
+    }
+
+    constexpr char CSV_DELIM = ';';
+
+    string headerLine;
+    if (!getline(in, headerLine)) {
+        cout << "(ERROR) Dataset is empty: " << csvPath << endl;
+        return false;
+    }
+    if (!headerLine.empty() && headerLine.back() == '\r') headerLine.pop_back();
+    vector<string> headers = parse_csv_line(headerLine, CSV_DELIM);
+    if (headers.empty()) {
+        cout << "(ERROR) Failed to parse CSV header." << endl;
+        return false;
+    }
+
+    cout << "Loading dataset into B+Tree: " << csvPath << endl;
+
+    long long inserted = 0;
+    long long skipped = 0;
+    long long lineNo = 1; // header is line 1
+
+    int key = 1;
+    string record;
+    while (getline(in, record)) {
+        if (!record.empty() && record.back() == '\r') record.pop_back();
+        lineNo++;
+        if (record.empty()) continue;
+
+        if (key > MAX_KEY_VALUE) {
+            cout << "Reached max key value at input line " << lineNo << ". Stopping." << endl;
+            break;
+        }
+
+        vector<string> values = parse_csv_line(record, CSV_DELIM);
+        if (values.size() < headers.size()) {
+            values.resize(headers.size());
+        }
+
+        // Find an unused key (handles case where user already inserted some keys)
+        bool insertedThisRow = false;
+        while (key <= MAX_KEY_VALUE) {
+            if (tree.Insert(key)) {
+                string dataFile = tree.Search(key);
+                if (dataFile.empty()) {
+                    tree.Delete(key);
+                    skipped++;
+                    key++;
+                    break;
+                }
+
+                // Store only values (one attribute per line), to save space.
+                vector<string> rowLines;
+                rowLines.reserve(headers.size());
+                for (size_t i = 0; i < headers.size(); i++) {
+                    string v = values[i];
+                    for (char& ch : v) {
+                        if (ch == '\n' || ch == '\r') ch = ' ';
+                    }
+                    rowLines.push_back(v);
+                }
+
+                if (!write_row_file(dataFile, key, rowLines)) {
+                    tree.Delete(key);
+                    skipped++;
+                    key++;
+                    break;
+                }
+
+                inserted++;
+                key++;
+                insertedThisRow = true;
+                break;
+            }
+            key++;
+        }
+
+        if (!insertedThisRow && key > MAX_KEY_VALUE) {
+            cout << "Reached max key value at input line " << lineNo << ". Stopping." << endl;
+            break;
+        }
+
+        if (inserted > 0 && (inserted % 5000 == 0)) {
+            cout << "Loaded " << inserted << " rows..." << endl;
+        }
+    }
+
+    cout << "Dataset load complete. Inserted=" << inserted << ", skipped=" << skipped << endl;
+    return inserted > 0;
+}
+
 vector<string> read_row_file_lines(const string& filePath){
     // ifstream in(filePath, ios::in);
     // vector<string> lines;
@@ -91,7 +227,7 @@ bool add_multiple_rows(BPlusTree& tree, int totalRows){
     vector<int> keys(totalRows);
     random_device rd;
     mt19937 rng(rd());
-    uniform_int_distribution<int> dist(1, INT_MAX);
+    uniform_int_distribution<int> dist(1, MAX_KEY_VALUE);
     for (int i = 0; i < totalRows; i++) {
         keys[i] = dist(rng);
     }
@@ -119,7 +255,7 @@ bool add_multiple_rows(BPlusTree& tree, int totalRows){
     return true;
 }
 
-void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
+void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread, int insPct=45, int srchPct=35, bool csvOut=false){
     if (numThreads <= 0 || opsPerThread <= 0) {
         cout << "Thread count and operations must be positive." << endl;
         return;
@@ -128,17 +264,19 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
     atomic<long long> insertOk(0), insertFail(0);
     atomic<long long> deleteOk(0), deleteFail(0);
     atomic<long long> searchHit(0), searchMiss(0);
+    atomic<long long> timeInsNs(0), timeSrchNs(0), timeDelNs(0);
 
     auto worker = [&](int tid){
         mt19937 rng(static_cast<unsigned>(chrono::steady_clock::now().time_since_epoch().count()) ^ static_cast<unsigned>(tid * 7919));
         uniform_int_distribution<int> opDist(0, 99);
-        uniform_int_distribution<int> keyDist(1, INT_MAX);
+        uniform_int_distribution<int> keyDist(1, MAX_KEY_VALUE);
 
         for (int i = 0; i < opsPerThread; i++) {
             int key = keyDist(rng);
             int op = opDist(rng);
 
-            if (op < 45) {
+            auto op_start = chrono::steady_clock::now();
+            if (op < insPct) {
                 if (tree.Insert(key)) {
                     insertOk++;
                     string dataFile = tree.Search(key);
@@ -148,25 +286,33 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
                 } else {
                     insertFail++;
                 }
-            } else if (op < 80) {
+                auto op_end = chrono::steady_clock::now();
+                timeInsNs += chrono::duration_cast<chrono::nanoseconds>(op_end - op_start).count();
+            } else if (op < insPct + srchPct) {
                 string dataFile = tree.Search(key);
                 if (dataFile.empty()) {
                     searchMiss++;
                 } else {
                     searchHit++;
                 }
+                auto op_end = chrono::steady_clock::now();
+                timeSrchNs += chrono::duration_cast<chrono::nanoseconds>(op_end - op_start).count();
             } else {
                 if (tree.Delete(key)) {
                     deleteOk++;
                 } else {
                     deleteFail++;
                 }
+                auto op_end = chrono::steady_clock::now();
+                timeDelNs += chrono::duration_cast<chrono::nanoseconds>(op_end - op_start).count();
             }
         }
     };
 
-    cout << "Starting concurrent stress: threads=" << numThreads
-         << ", ops/thread=" << opsPerThread << "..." << endl;
+    if (!csvOut) {
+        cout << "Starting concurrent stress: threads=" << numThreads
+             << ", ops/thread=" << opsPerThread << "..." << endl;
+    }
 
     auto start = chrono::steady_clock::now();
     vector<thread> threads;
@@ -180,6 +326,24 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
     auto end = chrono::steady_clock::now();
 
     long long elapsedMs = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+    
+    if (csvOut) {
+        long long totalIns = insertOk + insertFail;
+        long long totalSrch = searchHit + searchMiss;
+        long long totalDel = deleteOk + deleteFail;
+        
+        double avgInsMs = totalIns > 0 ? (double)timeInsNs / totalIns / 1e6 : 0.0;
+        double avgSrchMs = totalSrch > 0 ? (double)timeSrchNs / totalSrch / 1e6 : 0.0;
+        double avgDelMs = totalDel > 0 ? (double)timeDelNs / totalDel / 1e6 : 0.0;
+        
+        int delPct = 100 - insPct - srchPct;
+        cout << K << "," << INDEX_PAGES << "," << DATA_PAGES << "," << numThreads << "," << (numThreads * opsPerThread) 
+             << "," << insPct << "," << srchPct << "," << delPct << "," << elapsedMs << "," 
+             << insertOk << "," << insertFail << "," << deleteOk << "," << deleteFail << "," 
+             << searchHit << "," << searchMiss << "," << avgInsMs << "," << avgSrchMs << "," << avgDelMs << "\n";
+        return;
+    }
+
     cout << "Concurrent stress complete." << endl;
     cout << "Elapsed: " << elapsedMs << " ms" << endl;
     cout << "Insert  ok/fail: " << insertOk << "/" << insertFail << endl;
@@ -187,9 +351,39 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread){
     cout << "Search  hit/miss: " << searchHit << "/" << searchMiss << endl;
 }
 
-int main(){
+int main(int argc, char* argv[]){
     ios::sync_with_stdio(false);
     cin.tie(&cout);
+
+    if (argc > 1 && string(argv[1]) == "--experiment") {
+        if (argc >= 9) {
+            K = stoi(argv[2]);
+            INDEX_PAGES = stoi(argv[3]);
+            DATA_PAGES = stoi(argv[4]);
+            int numThreads = stoi(argv[5]);
+            int opsPerThread = stoi(argv[6]);
+            int insPct = stoi(argv[7]);
+            int searchPct = stoi(argv[8]);
+
+            g_dataCache = new LRU_K<vector<string>>(K, DATA_PAGES);
+            ensure_storage_dirs();
+            g_tree = new BPlusTree();
+            
+            run_concurrent_stress(*g_tree, numThreads, opsPerThread, insPct, searchPct, true);
+            
+            destroy_tree();
+            destroy_data_cache();
+            return 0;
+        } else {
+            cout << "Usage for expt: ./bptree --experiment <K> <INDEX_PAGES> <DATA_PAGES> <THREADS> <OPS_PER_THREAD> <INS_PCT> <SRCH_PCT>\n";
+            return 1;
+        }
+    }
+
+    // Default values back for interactive mode if not run via experiment script
+    K = 2;
+    INDEX_PAGES = 100;
+    DATA_PAGES = 1000;
 
     signal(SIGINT, handle_interrupt);
 
@@ -205,20 +399,21 @@ int main(){
         cout << "3. Delete"<<endl;
         cout << "4. Add a number of rows"<<endl;
         cout << "5. Concurrent stress test"<<endl;
-        cout << "6. Exit"<<endl;
+        cout << "6. Load a dataset"<<endl;
+        cout << "7. Exit"<<endl;
         cout << "Enter choice: ";
         int choice;
         cin>>choice;
-        while(choice < 1 || choice > 6){
-            cout << "Invalid choice. Enter a number between 1 and 6: ";
+        while(choice < 1 || choice > 7){
+            cout << "Invalid choice. Enter a number between 1 and 7: ";
             cin >> choice;
         }
         if (choice == 1) {
             int key;
-            cout << "Enter key (>0): ";
+            cout << "Enter key (1-" << MAX_KEY_VALUE << "): ";
             cin >> key;
-            if(!cin || key <= 0){
-                cout << "Invalid key. Please enter a positive integer."<<endl;
+            if(!cin || key <= 0 || key > MAX_KEY_VALUE){
+                cout << "Invalid key. Please enter a value between 1 and " << MAX_KEY_VALUE << "."<<endl;
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 continue;
@@ -238,8 +433,8 @@ int main(){
             int key;
             cout << "Enter key to search: ";
             cin >> key;
-            if(!cin || key <= 0){
-                cout << "Invalid key. Please enter a positive integer."<<endl;
+            if(!cin || key <= 0 || key > MAX_KEY_VALUE){
+                cout << "Invalid key. Please enter a value between 1 and " << MAX_KEY_VALUE << "."<<endl;
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 continue;
@@ -262,8 +457,8 @@ int main(){
             int key;
             cout << "Enter key to delete: ";
             cin >> key;
-            if(!cin || key <= 0){
-                cout << "Invalid key. Please enter a positive integer."<<endl;
+            if(!cin || key <= 0 || key > MAX_KEY_VALUE){
+                cout << "Invalid key. Please enter a value between 1 and " << MAX_KEY_VALUE << "."<<endl;
                 cin.clear();
                 cin.ignore(numeric_limits<streamsize>::max(), '\n');
                 continue;
@@ -293,6 +488,8 @@ int main(){
             }
             run_concurrent_stress(tree, numThreads, opsPerThread);
         } else if (choice == 6) {
+            load_dataset_into_tree(tree, "apartments_for_rent_classified_100K.csv");
+        } else if (choice == 7) {
             cout << "Exiting bitches bbye!!!."<<endl;
             break;
         } else {

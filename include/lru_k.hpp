@@ -14,9 +14,9 @@
 #include <atomic>
 using namespace std;
 
-#define K (int)2        // this is the value of K for the LRU-K class
-#define INDEX_PAGES (int)100
-#define DATA_PAGES (int)1000
+extern int K;
+extern int INDEX_PAGES;
+extern int DATA_PAGES;
 
 
 template<typename T>
