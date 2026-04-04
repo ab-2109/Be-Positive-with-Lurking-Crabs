@@ -1,9 +1,0 @@
-Bind the key values to say 1 to 3lakh 
-because else, keys are so sparsely distributed that search 
-and delete will always fail.
-
-Sims:
-Data cache pages will stay as is (ig 1000)
-1. Run for LRU-0 to 5 for 100 pages of index cache (K vs hit ratio and K vs time)
-2. For the best K found above, vary Index cache pages num (measure #pages vs time)
-3. Do for best K in 1 and say 100 pages of index cache. #Threads vs time for #threads =1,2,4,8
