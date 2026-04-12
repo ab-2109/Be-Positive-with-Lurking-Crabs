@@ -1,0 +1,36 @@
+K,IdxPages,DataPages,Threads,TotalOps,Ins%,Srch%,Del%,TimeMs,InsOk,InsFail,DelOk,DelFail,SrchHit,SrchMiss,AvgInsMs,AvgSrchMs,AvgDelMs
+2,100,1000,16,100000,30,40,30,26936,14919,14887,15094,15000,20055,20045,6.10938,2.02953,5.49833
+
+--- B+ Tree Latch Statistics ---
+Total S-Latches (Tree): 438696
+Total X-Latches (Tree): 488632
+Total Unique Page Latches Created: 30713
+--------------------------------
+
+===== Index Cache Statistics =====
+Total Reads:       936760
+Total Writes:      65292
+Read Hits:         509870
+Write Hits:        31587
+Read Hit Ratio:    54.43%
+Write Hit Ratio:   48.38%
+Total Access:      1002052
+Total Hits:        541457
+Total Hit Ratio:   54.03%
+Map Latches:       1923244
+Frame Latches:     1002157
+====================================
+
+===== Data Cache Statistics =====
+Total Reads:       20055
+Total Writes:      0
+Read Hits:         183
+Write Hits:        0
+Read Hit Ratio:    0.91%
+Write Hit Ratio:   0.00%
+Total Access:      20055
+Total Hits:        183
+Total Hit Ratio:   0.91%
+Map Latches:       144658
+Frame Latches:     35975
+====================================
