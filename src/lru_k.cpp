@@ -346,7 +346,7 @@ void LRU_K<T>::print_stats() const {
     double readHitRatio = (totalReads > 0) ? (100.0 * readHits / totalReads) : 0.0;
     double writeHitRatio = (totalWrites > 0) ? (100.0 * writeHits / totalWrites) : 0.0;
 
-    cout << "\n===== " << cacheType << " Statistics =====\n";
+    cout << "\n====== " << cacheType << " Statistics ======\n";
     cout << "Total Reads:       " << totalReads << "\n";
     cout << "Total Writes:      " << totalWrites << "\n";
     cout << "Read Hits:         " << readHits << "\n";

@@ -509,7 +509,7 @@ int main(int argc, char* argv[]){
         } else if (choice == 6) {
             load_dataset_into_tree(tree, "apartments_for_rent_classified_100K.csv");
         } else if (choice == 7) {
-            cout << "Exiting bitches bbye!!!."<<endl;
+            cout << "Exiting..."<<endl;
             break;
         } else {
             cout << "Invalid choice. Try again."<<endl;

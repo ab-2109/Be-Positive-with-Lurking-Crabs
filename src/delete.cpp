@@ -222,7 +222,7 @@ bool BPlusTree::Delete(int key)
 
     if (!result.success) {
         BP_ERROR=KEY_NOT_EXISTS;
-        cerr << "(WARNING) Delete(): Key " << key << " not present\n";
+        // cerr << "(WARNING) Delete(): Key " << key << " not present\n";
         return false;
     }
 

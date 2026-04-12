@@ -27,11 +27,11 @@ BPlusTree::~BPlusTree(){
 }
 
 void BPlusTree::print_latch_stats() {
-    cout << "\n--- B+ Tree Latch Statistics ---\n";
+    cout << "\n-------- B+ Tree Latch Statistics --------\n";
     cout << "Total S-Latches (Tree): " << total_s_latches.load() << "\n";
     cout << "Total X-Latches (Tree): " << total_x_latches.load() << "\n";
     cout << "Total Unique Page Latches Created: " << pageLatches.size() << "\n";
-    cout << "--------------------------------\n";
+    cout << "------------------------------------------\n";
 }
 
 void BPlusTree::init_fresh_state(){
