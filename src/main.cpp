@@ -88,7 +88,7 @@ bool write_row_file(const string& filePath, int key, const vector<string>& field
     // }
     // return true;
     if (g_dataCache == nullptr) return false;
-    return g_dataCache->write(filePath, fields, false);
+    return g_dataCache->write(filePath, fields, false, false);
 }
 
 static bool load_dataset_into_tree(BPlusTree& tree, const string& csvPath){
@@ -187,22 +187,7 @@ static bool load_dataset_into_tree(BPlusTree& tree, const string& csvPath){
     return inserted > 0;
 }
 
-vector<string> read_row_file_lines(const string& filePath){
-    // ifstream in(filePath, ios::in);
-    // vector<string> lines;
-    // if (!in.is_open()) {
-    //     return lines;
-    // }
-    // string line;
-    // while (getline(in, line)) {
-    //     lines.push_back(line);
-    // }
-    // return lines;
-    if (g_dataCache == nullptr) return {};
-    vector<string> currData;
-    g_dataCache->read(filePath, currData, nullptr);
-    return currData;
-}
+
 
 
 vector<string> deterministic_fields(int key){
@@ -289,8 +274,22 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread, in
                 auto op_end = chrono::steady_clock::now();
                 timeInsNs += chrono::duration_cast<chrono::nanoseconds>(op_end - op_start).count();
             } else if (op < insPct + srchPct) {
-                string dataFile = tree.Search(key);
-                if (dataFile.empty()) {
+                string dataFile = "Data/" + to_string(key) + ".txt";
+                bool found = false;
+                vector<string> lines;
+                
+                if (g_dataCache && g_dataCache->is_present(dataFile)) {
+                    g_dataCache->read(dataFile, lines, nullptr, true);
+                    found = true;
+                } else {
+                    dataFile = tree.Search(key);
+                    if (!dataFile.empty()) {
+                        if (g_dataCache) g_dataCache->read(dataFile, lines, nullptr, true);
+                        found = true;
+                    }
+                }
+
+                if (!found) {
                     searchMiss++;
                 } else {
                     searchHit++;
@@ -299,6 +298,9 @@ void run_concurrent_stress(BPlusTree& tree, int numThreads, int opsPerThread, in
                 timeSrchNs += chrono::duration_cast<chrono::nanoseconds>(op_end - op_start).count();
             } else {
                 if (tree.Delete(key)) {
+                    string dataFile = "Data/" + to_string(key) + ".txt";
+                    if (g_dataCache) g_dataCache->invalidate(dataFile);
+                    remove(dataFile.c_str());
                     deleteOk++;
                 } else {
                     deleteFail++;
@@ -440,12 +442,26 @@ int main(int argc, char* argv[]){
                 continue;
             }
 
-            string dataFile = tree.Search(key);
-            if (dataFile.empty()) {
-                cout << "Key not found.\n";
+            string dataFile = "Data/" + to_string(key) + ".txt";
+            vector<string> lines;
+            bool found = false;
+
+            if (g_dataCache && g_dataCache->is_present(dataFile)) {
+                g_dataCache->read(dataFile, lines, nullptr, true);
+                cout << "Key found in memory. Row file: " << dataFile << endl;
+                found = true;
             } else {
-                cout << "Key found. Row file: "<< dataFile << endl;
-                auto lines = read_row_file_lines(dataFile);
+                dataFile = tree.Search(key);
+                if (dataFile.empty()) {
+                    cout << "Key not found.\n";
+                } else {
+                    g_dataCache->read(dataFile, lines, nullptr, true);
+                    cout << "Key found. Row file: "<< dataFile << endl;
+                    found = true;
+                }
+            }
+
+            if (found) {
                 if (lines.empty()) {
                     cout << "Row file is empty or unreadable.\n";
                 } else {
@@ -467,6 +483,9 @@ int main(int argc, char* argv[]){
                 print_failure_from_bp_error();
                 continue;
             }
+            string dataFile = "Data/" + to_string(key) + ".txt";
+            if (g_dataCache) g_dataCache->invalidate(dataFile);
+            remove(dataFile.c_str());
             cout << "Delete successful for key=" << key << endl;
         } else if (choice == 4) {
             int tmp;

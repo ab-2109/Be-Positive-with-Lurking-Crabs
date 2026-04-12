@@ -83,8 +83,9 @@ class LRU_K{
         return cache.size();
     }
 
-    bool read(const string& fileName, T& out, bool* isLeafOut = nullptr);
-    bool write(const string& fileName, const T& value, bool isLeaf = true);
+    bool read(const string& fileName, T& out, bool* isLeafOut = nullptr, bool recordStats = true);
+    bool write(const string& fileName, const T& value, bool isLeaf = true, bool recordStats = true);
+    void invalidate(const string& fileName);
 
     bool flush(const string& fileName);
     void flush_all();

@@ -83,7 +83,6 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
             return {false, false, -1};
         }
 
-        remove(tgt->second.c_str()); // delete the actual row data file
         currNode.erase(tgt);
         write_file(file, currNode, true);
 

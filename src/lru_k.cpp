@@ -185,21 +185,34 @@ bool LRU_K<T>::evict_if_needed() {
 
     auto it = cache.find(victim);
     if (it == cache.end()) return true;
-    unique_lock<mutex> frameLock(it->second.frameMutex);
-    if (!flush_to_disk(victim, it->second)) return false;
+    
+    {
+        unique_lock<mutex> frameLock(it->second.frameMutex);
+        if (!flush_to_disk(victim, it->second)) return false;
+    }
+    
     cache.erase(it);
     return true;
 }
 
 template <typename T>
-bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
+void LRU_K<T>::invalidate(const string& fileName) {
+    lock_guard<mutex> mapLock(cacheMapMutex);
+    auto it = cache.find(fileName);
+    if (it != cache.end()) {
+        cache.erase(it);
+    }
+}
+
+template <typename T>
+bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut, bool recordStats) {
     {
         lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
-        ++totalReads;
+        if (recordStats) ++totalReads;
         auto it = cache.find(fileName);
         if (it != cache.end()) {
             lock_guard<mutex> frameLock(it->second.frameMutex); frame_latches++;
-            ++readHits;
+            if (recordStats) ++readHits;
             touch(it->second);
             out = it->second.data;
             if constexpr (is_same_v<T, map<int, string>>) {
@@ -242,7 +255,7 @@ bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut) {
 }
 
 template <typename T>
-bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
+bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf, bool recordStats) {
     if (page <= 0) {
         Frame direct;
         direct.data = value;
@@ -257,11 +270,11 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf) {
 
     {
         lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
-        ++totalWrites;
+        if (recordStats) ++totalWrites;
         auto it = cache.find(fileName);
         if (it != cache.end()) {
             lock_guard<mutex> frameLock(it->second.frameMutex); frame_latches++;
-            ++writeHits;
+            if (recordStats) ++writeHits;
             it->second.data = value;
             it->second.dirty = true;
             if constexpr (is_same_v<T, map<int, string>>) {
