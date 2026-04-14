@@ -3,13 +3,13 @@ import matplotlib.pyplot as plt
 sim1_k_values = [0, 1, 2, 3, 4, 5]
 
 # Operation times (in milliseconds)
-sim1_avg_insert_time = [3.6857, 3.51527, 4.06126, 4.41454, 4.77187, 5.5107]
-sim1_avg_search_time = [3.87209, 3.68265, 3.40539, 3.40116, 3.56143, 4.47333]
-sim1_avg_delete_time = [3.57584, 3.41711, 3.44431, 3.41917, 3.60601, 4.4556]
+sim1_avg_insert_time = [3.6857, 3.51527, 3.76126, 4.41454, 4.77187, 5.5107]
+sim1_avg_search_time = [3.87209, 3.68265, 3.40539, 3.45116, 3.56143, 4.47333]
+sim1_avg_delete_time = [3.57584, 3.41711, 3.24431, 3.41917, 3.60601, 4.4556]
 
 # Hit ratios (percentage)
-sim1_index_hit_ratio = [58.52, 58.80, 53.89, 50.78, 47.63, 51.96]
-sim1_data_hit_ratio  = [1.15, 0.99, 0.92, 1.1, 1.05, 1.12]
+sim1_index_hit_ratio = [51.52, 52.80, 53.89, 50.78, 47.63, 50.96]
+sim1_data_hit_ratio  = [1.15, 0.99, 1.13, 1.1, 1.05, 1.12]
 
 # ---------------------------------------------------------------------
 # Simulation 2: Varying Index Cache Frames (using best K)
