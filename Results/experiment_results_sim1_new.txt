@@ -1,0 +1,211 @@
+K,IdxPages,DataPages,Threads,TotalOps,Ins%,Srch%,Del%,TimeMs,InsOk,InsFail,DelOk,DelFail,SrchHit,SrchMiss,AvgInsMs,AvgSrchMs,AvgDelMs
+0,100,1000,4,100000,30,40,30,93248,15043,14968,15161,15136,19756,19936,3.6857,3.87209,3.57584
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 436064
+Total X-Latches (Tree): 491849
+Total Unique Page Latches Created: 30805
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       937298
+Total Writes:      65414
+Read Hits:         523831
+Write Hits:        62949
+Read Hit Ratio:    55.89%
+Write Hit Ratio:   96.23%
+Total Access:      1002712
+Total Hits:        586780
+Total Hit Ratio:   58.52%
+Map Latches:       1834578
+Frame Latches:     1002812
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       19756
+Total Writes:      0
+Read Hits:         227
+Write Hits:        0
+Read Hit Ratio:    1.15%
+Write Hit Ratio:   0.00%
+Total Access:      19756
+Total Hits:        227
+Total Hit Ratio:   1.15%
+Map Latches:       143637
+Frame Latches:     35800
+====================================
+1,100,1000,4,100000,30,40,30,88905,14888,15019,15109,15066,19969,19949,3.51527,3.68265,3.41711
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 436872
+Total X-Latches (Tree): 490093
+Total Unique Page Latches Created: 30830
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       936402
+Total Writes:      65266
+Read Hits:         526160
+Write Hits:        62803
+Read Hit Ratio:    56.19%
+Write Hit Ratio:   96.23%
+Total Access:      1001668
+Total Hits:        588963
+Total Hit Ratio:   58.80%
+Map Latches:       1827080
+Frame Latches:     1001771
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       19969
+Total Writes:      0
+Read Hits:         197
+Write Hits:        0
+Read Hit Ratio:    0.99%
+Write Hit Ratio:   0.00%
+Total Access:      19969
+Total Hits:        197
+Total Hit Ratio:   0.99%
+Map Latches:       144097
+Frame Latches:     35857
+====================================
+2,100,1000,4,100000,30,40,30,90591,15085,15051,15037,14856,20041,19930,4.06126,3.40539,3.44431
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 438968
+Total X-Latches (Tree): 489520
+Total Unique Page Latches Created: 30799
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       937776
+Total Writes:      65207
+Read Hits:         502611
+Write Hits:        37889
+Read Hit Ratio:    53.60%
+Write Hit Ratio:   58.11%
+Total Access:      1002983
+Total Hits:        540500
+Total Hit Ratio:   53.89%
+Map Latches:       1927951
+Frame Latches:     1003085
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       20041
+Total Writes:      0
+Read Hits:         185
+Write Hits:        0
+Read Hit Ratio:    0.92%
+Write Hit Ratio:   0.00%
+Total Access:      20041
+Total Hits:        185
+Total Hit Ratio:   0.92%
+Map Latches:       144979
+Frame Latches:     36126
+====================================
+3,100,1000,4,100000,30,40,30,92902,15079,15049,14811,15017,19953,20091,4.41454,3.40116,3.41917
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 439240
+Total X-Latches (Tree): 488878
+Total Unique Page Latches Created: 30765
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       937348
+Total Writes:      64574
+Read Hits:         473109
+Write Hits:        35705
+Read Hit Ratio:    50.47%
+Write Hit Ratio:   55.29%
+Total Access:      1001922
+Total Hits:        508814
+Total Hit Ratio:   50.78%
+Map Latches:       1988140
+Frame Latches:     1002023
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       19953
+Total Writes:      0
+Read Hits:         219
+Write Hits:        0
+Read Hit Ratio:    1.10%
+Write Hit Ratio:   0.00%
+Total Access:      19953
+Total Hits:        219
+Total Hit Ratio:   1.10%
+Map Latches:       144704
+Frame Latches:     36033
+====================================
+4,100,1000,4,100000,30,40,30,98551,14874,15029,14912,14977,20054,20154,4.77187,3.56143,3.60601
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 438984
+Total X-Latches (Tree): 487559
+Total Unique Page Latches Created: 30734
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       935766
+Total Writes:      64471
+Read Hits:         443373
+Write Hits:        33081
+Read Hit Ratio:    47.38%
+Write Hit Ratio:   51.31%
+Total Access:      1000237
+Total Hits:        476454
+Total Hit Ratio:   47.63%
+Map Latches:       2047805
+Frame Latches:     1000338
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       20054
+Total Writes:      0
+Read Hits:         210
+Write Hits:        0
+Read Hit Ratio:    1.05%
+Write Hit Ratio:   0.00%
+Total Access:      20054
+Total Hits:        210
+Total Hit Ratio:   1.05%
+Map Latches:       144574
+Frame Latches:     35929
+====================================
+5,100,1000,4,100000,30,40,30,119570,14951,14931,15029,14959,20094,20036,5.5107,4.47333,4.4556
+
+-------- B+ Tree Latch Statistics --------
+Total S-Latches (Tree): 438840
+Total X-Latches (Tree): 488249
+Total Unique Page Latches Created: 30727
+------------------------------------------
+
+====== Index Cache Statistics ======
+Total Reads:       936378
+Total Writes:      64824
+Read Hits:         478350
+Write Hits:        41923
+Read Hit Ratio:    51.09%
+Write Hit Ratio:   64.67%
+Total Access:      1001202
+Total Hits:        520273
+Total Hit Ratio:   51.96%
+Map Latches:       1963062
+Frame Latches:     1001304
+====================================
+
+====== Data Cache Statistics ======
+Total Reads:       20094
+Total Writes:      0
+Read Hits:         226
+Write Hits:        0
+Read Hit Ratio:    1.12%
+Write Hit Ratio:   0.00%
+Total Access:      20094
+Total Hits:        226
+Total Hit Ratio:   1.12%
+Map Latches:       144815
+Frame Latches:     36045
+====================================

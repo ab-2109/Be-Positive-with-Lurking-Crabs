@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++17 -Iinclude -pthread -O3
+CXXFLAGS = -std=c++17 -Iinclude -pthread -O2
 SRCDIR = src
 BUILDDIR = build
 SRC = $(wildcard $(SRCDIR)/*.cpp)

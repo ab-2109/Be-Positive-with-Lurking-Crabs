@@ -2,28 +2,28 @@ import matplotlib.pyplot as plt
 
 sim1_k_values = [0, 1, 2, 3, 4, 5]
 
-# Operation times (in microseconds)
-sim1_avg_insert_time = [12.5, 11.2, 10.5, 10.3, 10.2, 10.1]
-sim1_avg_delete_time = [14.0, 12.5, 11.8, 11.5, 11.4, 11.3]
-sim1_avg_search_time = [8.0, 6.5, 5.2, 4.8, 4.6, 4.5]
+# Operation times (in milliseconds)
+sim1_avg_insert_time = [3.6857, 3.51527, 4.06126, 4.41454, 4.77187, 5.5107]
+sim1_avg_search_time = [3.87209, 3.68265, 3.40539, 3.40116, 3.56143, 4.47333]
+sim1_avg_delete_time = [3.57584, 3.41711, 3.44431, 3.41917, 3.60601, 4.4556]
 
 # Hit ratios (percentage)
-sim1_index_hit_ratio = [0.40, 0.55, 0.68, 0.72, 0.75, 0.76]
-sim1_data_hit_ratio  = [0.30, 0.45, 0.55, 0.60, 0.62, 0.63]
+sim1_index_hit_ratio = [58.52, 58.80, 53.89, 50.78, 47.63, 51.96]
+sim1_data_hit_ratio  = [1.15, 0.99, 0.92, 1.1, 1.05, 1.12]
 
 # ---------------------------------------------------------------------
 # Simulation 2: Varying Index Cache Frames (using best K)
 # Array of index cache frames sizes
 # ---------------------------------------------------------------------
-sim2_frames = [50, 100, 200, 400, 800]
+sim2_frames = [0, 50, 100, 200, 400, 800]
 
-# Operation times (in microseconds)
-sim2_avg_insert_time = [15.0, 10.5, 8.2, 6.5, 5.0]
-sim2_avg_delete_time = [16.5, 11.8, 9.0, 7.2, 5.5]
-sim2_avg_search_time = [9.0, 5.2, 3.5, 2.2, 1.5]
+# Operation times (in milliseconds)
+sim2_avg_insert_time = [7.47625, 4.3547, 4.05614, 3.69698, 3.38562]
+sim2_avg_search_time = [4.89192, 3.49725, 3.33162, 3.1205, 2.98083]
+sim2_avg_delete_time = [5.9663, 3.5541, 3.40961, 3.20983, 3.08839]
 
 # Hit ratios (percentage)
-sim2_index_hit_ratio = [0.35, 0.68, 0.82, 0.91, 0.98]
+sim2_index_hit_ratio = [0, 48.46, 53.74, 58.18, 63.89, 70.03]
 
 # ---------------------------------------------------------------------
 # Simulation 3: Varying Number of Threads
@@ -31,7 +31,7 @@ sim2_index_hit_ratio = [0.35, 0.68, 0.82, 0.91, 0.98]
 # ---------------------------------------------------------------------
 sim3_threads = [1, 2, 4, 8]
 
-# Average operation time across threads (in microseconds)
+# Average operation time across threads (in milliseconds)
 sim3_avg_op_time = [10.5, 5.8, 3.2, 1.8]
 
 
@@ -48,7 +48,7 @@ def plot_sim1_times():
     
     plt.title('Sim 1: LRU-K parameter (K) vs Avg Operation Time', fontsize=12)
     plt.xlabel('K (for LRU-K)')
-    plt.ylabel('Average Time (in microseconds)')
+    plt.ylabel('Average Time (in milliseconds)')
     plt.xticks(sim1_k_values)
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
@@ -81,7 +81,7 @@ def plot_sim2_times():
     
     plt.title('Sim 2: Index Cache Frames vs Avg Operation Time', fontsize=12)
     plt.xlabel('# Index Cache Frames')
-    plt.ylabel('Average Time (in microseconds)')
+    plt.ylabel('Average Time (in milliseconds)')
     plt.xticks(sim2_frames)
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)
@@ -111,7 +111,7 @@ def plot_sim3_threads():
     
     plt.title('Sim 3: Number of Threads vs Avg Operation Time', fontsize=12)
     plt.xlabel('# Threads')
-    plt.ylabel('Average Time (in microseconds)')
+    plt.ylabel('Average Time (in seconds)')
     plt.xticks(sim3_threads)
     plt.legend()
     plt.grid(True, linestyle='--', alpha=0.7)

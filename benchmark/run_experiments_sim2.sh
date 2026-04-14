@@ -49,7 +49,7 @@ run_expt() {
     taskset -c "$CPUSET" ./build/bptree --experiment "$K" "$IP" "$DP" "$TH" "$OPS" "$INS" "$SRCH" "$DEL" >> "$OUT_FILE"
 }
 
-for INDEX_PAGES in 50 100 200 400 800; do
+for INDEX_PAGES in 0 50 100 200 400 800; do
     OPS_PER_THREAD=$((TOTAL_OPS / THREADS))
     run_expt "$K_VAL" "$INDEX_PAGES" "$DATA_PAGES" "$THREADS" "$OPS_PER_THREAD" "$INS_PCT" "$SRCH_PCT" "$DEL_PCT"
 done
