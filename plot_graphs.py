@@ -18,9 +18,9 @@ sim1_data_hit_ratio  = [1.15, 0.99, 0.92, 1.1, 1.05, 1.12]
 sim2_frames = [0, 50, 100, 200, 400, 800]
 
 # Operation times (in milliseconds)
-sim2_avg_insert_time = [7.47625, 4.3547, 4.05614, 3.69698, 3.38562]
-sim2_avg_search_time = [4.89192, 3.49725, 3.33162, 3.1205, 2.98083]
-sim2_avg_delete_time = [5.9663, 3.5541, 3.40961, 3.20983, 3.08839]
+sim2_avg_insert_time = [7.47625, 4.3547, 4.05614, 3.69698, 3.38562,2.86119]
+sim2_avg_search_time = [4.89192, 3.49725, 3.33162, 3.1205, 2.98083, 2.66956]
+sim2_avg_delete_time = [5.9663, 3.5541, 3.40961, 3.20983, 3.08839, 2.7828]
 
 # Hit ratios (percentage)
 sim2_index_hit_ratio = [0, 48.46, 53.74, 58.18, 63.89, 70.03]
