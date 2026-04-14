@@ -1,5 +1,16 @@
 #include "../include/lru_k.hpp"
 
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <vector>
+#include <string>
+#include <cstring>
+
+using namespace std;
+
+static const size_t BLOCK_SIZE = 4096;
+
 template <typename T>
 LRU_K<T>::~LRU_K() {
     flush_all();
@@ -177,17 +188,16 @@ string LRU_K<T>::pick_victim() const {
 
 
 
+/*
+Note: We are using O_DIRECT as it forces the execution to load the text file 
+from the storage, even if it is present in out computer's cache (not out LRU-K).
 
-#include <fcntl.h>
-#include <unistd.h>
-#include <cstdlib>
-#include <vector>
-#include <string>
-#include <cstring>
-
-using namespace std;
-
-static const size_t BLOCK_SIZE = 4096;
+When we where not using O_DIRECT, the execution time increased when we increased 
+the number of Index Cache pages, despite the increase in hit rate. This was because 
+our laptop's OS was using our laptop's cache and thus, the IO time did not decrease much 
+but the code overhead increased a lot. Moreover, the increase in code overhead's time 
+was more than the minimal decrease in IO time.
+*/
 
 // Read entire file using O_DIRECT
 bool read_file_direct(const string& fileName, string& output) {
