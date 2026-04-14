@@ -70,110 +70,284 @@ string LRU_K<T>::pick_victim() const {
     return victim;
 }
 
+// template <typename T>
+// bool LRU_K<T>::load_from_disk(const string& fileName, Frame& frame, bool* isLeafOut) {
+//     if constexpr (is_same_v<T, map<int, string>>) {
+//         ifstream file(fileName, ios::in);
+//         if (!file.is_open()) {
+//             return false;
+//         }
+
+//         map<int, string> currNode;
+//         bool isLeaf = true;
+//         if (!(file >> isLeaf)) {
+//             return false;
+//         }
+
+//         string filePtrs;
+//         if (!isLeaf) {
+//             if (!(file >> filePtrs)) {
+//                 return false;
+//             }
+//             currNode[0] = filePtrs;
+//         }
+
+//         int key;
+//         while (file >> key >> filePtrs) {
+//             currNode[key] = filePtrs;
+//         }
+
+//         frame.data = move(currNode);
+//         frame.isLeaf = isLeaf;
+//         frame.dirty = false;
+//         if (isLeafOut != nullptr) {
+//             *isLeafOut = isLeaf;
+//         }
+//         return true;
+//     } else {
+//         ifstream file(fileName, ios::in);
+//         if (!file.is_open()) {
+//             return false;
+//         }
+
+//         vector<string> lines;
+//         string line;
+//         while (getline(file, line)) {
+//             lines.push_back(line);
+//         }
+
+//         frame.data = move(lines);
+//         frame.isLeaf = true;
+//         frame.dirty = false;
+//         if (isLeafOut != nullptr) {
+//             *isLeafOut = true;
+//         }
+//         return true;
+//     }
+// }
+
+// template <typename T>
+// bool LRU_K<T>::flush_to_disk(const string& fileName, Frame& frame) {
+//     if (!frame.dirty) {
+//         return true;
+//     }
+
+//     if constexpr (is_same_v<T, map<int, string>>) {
+//         ofstream file(fileName, ios::out);
+//         if (!file.is_open()) {
+//             return false;
+//         }
+
+//         file << frame.isLeaf << '\n';
+
+//         if (!frame.isLeaf) {
+//             auto ptr = frame.data.find(0);
+//             if (ptr == frame.data.end()) {
+//                 return false;
+//             }
+//             file << ptr->second << '\n';
+//         }
+
+//         for (const auto& [key, filePtr] : frame.data) {
+//             if (!frame.isLeaf && key == 0) {
+//                 continue;
+//             }
+//             file << key << '\n' << filePtr << '\n';
+//         }
+
+//         frame.dirty = false;
+//         return true;
+//     } else {
+//         ofstream file(fileName, ios::out);
+//         if (!file.is_open()) {
+//             return false;
+//         }
+
+//         for (size_t i = 0; i < frame.data.size(); i++) {
+//             file << frame.data[i];
+//             if (i + 1 < frame.data.size()) {
+//                 file << '\n';
+//             }
+//         }
+
+//         frame.dirty = false;
+//         return true;
+//     }
+// }
+
+
+
+
+#include <fcntl.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <vector>
+#include <string>
+#include <cstring>
+
+using namespace std;
+
+static const size_t BLOCK_SIZE = 4096;
+
+// Read entire file using O_DIRECT
+bool read_file_direct(const string& fileName, string& output) {
+    int fd = open(fileName.c_str(), O_RDONLY | O_DIRECT);
+    if (fd < 0) return false;
+
+    void* buffer;
+    if (posix_memalign(&buffer, BLOCK_SIZE, BLOCK_SIZE)) {
+        close(fd);
+        return false;
+    }
+
+    ssize_t bytesRead;
+    while ((bytesRead = read(fd, buffer, BLOCK_SIZE)) > 0) {
+        output.append((char*)buffer, bytesRead);
+    }
+
+    free(buffer);
+    close(fd);
+    return true;
+}
+
+// Write entire file using O_DIRECT
+bool write_file_direct(const string& fileName, const string& data) {
+    int fd = open(fileName.c_str(), O_WRONLY | O_CREAT | O_TRUNC | O_DIRECT, 0644);
+    if (fd < 0) return false;
+
+    size_t paddedSize = ((data.size() + BLOCK_SIZE - 1) / BLOCK_SIZE) * BLOCK_SIZE;
+
+    void* buffer;
+    if (posix_memalign(&buffer, BLOCK_SIZE, paddedSize)) {
+        close(fd);
+        return false;
+    }
+
+    memset(buffer, 0, paddedSize);
+    memcpy(buffer, data.c_str(), data.size());
+
+    ssize_t written = write(fd, buffer, paddedSize);
+
+    free(buffer);
+    close(fd);
+
+    return written >= 0;
+}
+
 template <typename T>
 bool LRU_K<T>::load_from_disk(const string& fileName, Frame& frame, bool* isLeafOut) {
-    if constexpr (is_same_v<T, map<int, string>>) {
-        ifstream file(fileName, ios::in);
-        if (!file.is_open()) {
-            return false;
-        }
+    string content;
+    if (!read_file_direct(fileName, content)) {
+        return false;
+    }
 
-        map<int, string> currNode;
-        bool isLeaf = true;
-        if (!(file >> isLeaf)) {
-            return false;
-        }
+    vector<string> tokens;
+    string curr;
 
-        string filePtrs;
-        if (!isLeaf) {
-            if (!(file >> filePtrs)) {
-                return false;
+    // Simple tokenizer (whitespace split)
+    for (char c : content) {
+        if (isspace(c)) {
+            if (!curr.empty()) {
+                tokens.push_back(curr);
+                curr.clear();
             }
-            currNode[0] = filePtrs;
+        } else {
+            curr += c;
+        }
+    }
+    if (!curr.empty()) tokens.push_back(curr);
+
+    size_t idx = 0;
+
+    if constexpr (is_same_v<T, map<int, string>>) {
+        map<int, string> currNode;
+
+        if (idx >= tokens.size()) return false;
+        bool isLeaf = stoi(tokens[idx++]);
+
+        if (!isLeaf) {
+            if (idx >= tokens.size()) return false;
+            currNode[0] = tokens[idx++];
         }
 
-        int key;
-        while (file >> key >> filePtrs) {
-            currNode[key] = filePtrs;
+        while (idx + 1 < tokens.size()) {
+            int key = stoi(tokens[idx++]);
+            string filePtr = tokens[idx++];
+            currNode[key] = filePtr;
         }
 
         frame.data = move(currNode);
         frame.isLeaf = isLeaf;
         frame.dirty = false;
-        if (isLeafOut != nullptr) {
-            *isLeafOut = isLeaf;
-        }
-        return true;
-    } else {
-        ifstream file(fileName, ios::in);
-        if (!file.is_open()) {
-            return false;
-        }
 
+        if (isLeafOut) *isLeafOut = isLeaf;
+
+        return true;
+
+    } else {
         vector<string> lines;
         string line;
-        while (getline(file, line)) {
-            lines.push_back(line);
+
+        for (char c : content) {
+            if (c == '\n') {
+                lines.push_back(line);
+                line.clear();
+            } else {
+                line += c;
+            }
         }
+        if (!line.empty()) lines.push_back(line);
 
         frame.data = move(lines);
         frame.isLeaf = true;
         frame.dirty = false;
-        if (isLeafOut != nullptr) {
-            *isLeafOut = true;
-        }
+
+        if (isLeafOut) *isLeafOut = true;
+
         return true;
     }
 }
 
 template <typename T>
 bool LRU_K<T>::flush_to_disk(const string& fileName, Frame& frame) {
-    if (!frame.dirty) {
-        return true;
-    }
+    if (!frame.dirty) return true;
+
+    string output;
 
     if constexpr (is_same_v<T, map<int, string>>) {
-        ofstream file(fileName, ios::out);
-        if (!file.is_open()) {
-            return false;
-        }
-
-        file << frame.isLeaf << '\n';
+        output += to_string(frame.isLeaf) + "\n";
 
         if (!frame.isLeaf) {
             auto ptr = frame.data.find(0);
-            if (ptr == frame.data.end()) {
-                return false;
-            }
-            file << ptr->second << '\n';
+            if (ptr == frame.data.end()) return false;
+            output += ptr->second + "\n";
         }
 
         for (const auto& [key, filePtr] : frame.data) {
-            if (!frame.isLeaf && key == 0) {
-                continue;
-            }
-            file << key << '\n' << filePtr << '\n';
+            if (!frame.isLeaf && key == 0) continue;
+            output += to_string(key) + "\n";
+            output += filePtr + "\n";
         }
 
-        frame.dirty = false;
-        return true;
     } else {
-        ofstream file(fileName, ios::out);
-        if (!file.is_open()) {
-            return false;
-        }
-
         for (size_t i = 0; i < frame.data.size(); i++) {
-            file << frame.data[i];
-            if (i + 1 < frame.data.size()) {
-                file << '\n';
-            }
+            output += frame.data[i];
+            if (i + 1 < frame.data.size()) output += "\n";
         }
-
-        frame.dirty = false;
-        return true;
     }
+
+    if (!write_file_direct(fileName, output)) {
+        return false;
+    }
+
+    frame.dirty = false;
+    return true;
 }
+
+
+
+
+
 
 template <typename T>
 bool LRU_K<T>::evict_if_needed() {
