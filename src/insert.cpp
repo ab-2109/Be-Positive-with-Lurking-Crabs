@@ -7,7 +7,7 @@ inline void BPlusTree::split_node(map<int,string> &currNode,map<int,string> &new
             auto it = prev(currNode.end(), k);
             
             while(it != currNode.end()){        //splitting current node
-                newNode.insert(currNode.extract(it++)); 
+                newNode.insert(currNode.extract(it++));  // it++ here is to prevent iterator invalidation
     }
 }
 
@@ -22,17 +22,24 @@ bool BPlusTree::Insert(int key){
             currentRoot = root;
             if (currentRoot.empty()) {
                 // Tree is empty
+
+
+                // get_free_file_name is not synchronised.
+
+                // need to change the false to Data and Index types better semantics.
                 root = get_free_file_name(false);
+
                 map<int,string> currNode;
                 currNode[key] = get_free_file_name(true,key);
-                write_file(root, currNode, true);
+                write_file(root, currNode, true); // here need to add LEAF/NON LEAF Type.
                 numRows.fetch_add(1);
                 currLevel.fetch_add(1);
                 return true;
             }
         }
         auto latch = BPlusTree::get_page_latch(currentRoot);
-        rootLock = unique_lock<shared_mutex>(*latch); total_x_latches++;
+        rootLock = unique_lock<shared_mutex>(*latch); 
+        total_x_latches++;
         {
             lock_guard<mutex> m(metaMutex);
             if (root == currentRoot) break;
@@ -40,6 +47,7 @@ bool BPlusTree::Insert(int key){
         rootLock.unlock();
     }
 
+    // this check is not atomic has to make it atomic.
     if(numRows.load() == MAX_ALLOW_ENTRIES){
         BP_ERROR = MEM_FULL;
         return false;
@@ -53,16 +61,20 @@ bool BPlusTree::Insert(int key){
     insert_t node = f_insert(key, currentRoot, path_locks);
     if(!node.success){
         BP_ERROR = KEY_EXISTS;
-        numRows.fetch_sub(1);
+        numRows.fetch_sub(1); 
         return false;
     }
     if(!node.didSplit) return true;
 
     // Time to create new root
-    map<int,string> newRoot;
-    newRoot[EMPTY_NODE_VAL] = currentRoot;  // According to our map convention, we store the 1st 
+    // the main reason we required two insert functions insert and f_insert.
+
+
+    // According to our map convention, we store the 1st 
     // pointer of the node as value of the key 0 (assuming all key values are 
     // always >0)
+    map<int,string> newRoot;
+    newRoot[EMPTY_NODE_VAL] = currentRoot;  
     newRoot[node.newFirstKey] = node.newFileName;
 
     string newRootFile = get_free_file_name(false);
@@ -81,8 +93,8 @@ insert_t BPlusTree::f_insert(int key, const string& file, deque<unique_lock<shar
     bool isLeaf;
     map<int,string> currNode = read_file(file, isLeaf);
 
-    bool isSafe = (currNode.size() < N); 
-    if (isSafe && path_locks.size() > 1) {
+    bool isSafe = (currNode.size() < N); // this checks if after inserting are there chances that node split
+    if (isSafe && path_locks.size() > 1) { // if it won't split and path lock contains parent nodes then unlock them.
         while (path_locks.size() > 1) {
             path_locks.front().unlock();
             path_locks.pop_front();
@@ -116,8 +128,10 @@ insert_t BPlusTree::f_insert(int key, const string& file, deque<unique_lock<shar
             split_node(currNode,newNode);
 
             auto it = newNode.begin();
-            int promotedKey = it->first;
+            int promotedKey = it->first; // this key will become the pivot key in the parent index node. for the new node.
 
+            // here we are doing this because after split the new node has non-empty-node val as it's first value
+            // but our convention says that first node has to be 0 in Index node.
             newNode[EMPTY_NODE_VAL] = it->second;
             newNode.erase(it);
 
@@ -141,6 +155,9 @@ insert_t BPlusTree::f_insert(int key, const string& file, deque<unique_lock<shar
             string newFile = get_free_file_name(false);
             
             split_node(currNode,newNode);
+
+            // here we don't erase or replace the first value of map with 0
+            // as per our convention here the first node can be non-zero
 
             write_file(file, currNode, true);
             write_file(newFile, newNode, true);

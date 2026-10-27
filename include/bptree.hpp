@@ -9,12 +9,12 @@
 #include <deque>
 #include "lru_k.hpp"
 
-
 using namespace std;
 #define MAX_ALLOW_ENTRIES 131072
 #define EMPTY_NODE_VAL 0
 
 typedef enum {MEM_FULL, KEY_EXISTS, KEY_NOT_EXISTS} BP_Error;
+// Bperror is shared non-atomic variable this is left to make atomic after adding threads.
 inline BP_Error BP_ERROR = MEM_FULL;
 inline const map<BP_Error, string> g_ErrorMsg = {
     {MEM_FULL, "Insertion Failed. Memory Limit has been reached."},
@@ -47,7 +47,12 @@ inline void file_opened(const StreamType& file, string_view fileName)
     }
 }
 
+// print error msg
 void log_error(string_view msg);
+
+// get the free file name
+// for index. "Index/<NUMBER>.txt"
+// for data. "Data/<key>.txt"
 string get_free_file_name(bool isData,int key=-1);
 
 
@@ -59,8 +64,10 @@ class BPlusTree{
         static constexpr int MAX_INDEX_FILES = 37449;
         static constexpr const char* METADATA_FILE = "metadata.txt";
         string root;
-        atomic<int> numRows;
+        atomic<int> numRows; // bad naming, it should be numRecords
         atomic<int> currLevel;
+
+        // stores available free numbers, Big brain could have used simple vector with push and pop
         static priority_queue<int, vector<int>, greater<int>> availPointer;
         static unordered_map<string, shared_ptr<shared_mutex>> pageLatches;
         static mutex pageLatchMutex;

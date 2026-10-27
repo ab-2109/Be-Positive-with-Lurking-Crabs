@@ -52,6 +52,7 @@ string LRU_K<T>::pick_victim() const {
             continue;
         }
 
+        // we give priority to cache pages accessed min number of times.
         if (underSampled && !victimUnderSampled) {
             victim = fileName;
             victimUnderSampled = true;
@@ -60,6 +61,9 @@ string LRU_K<T>::pick_victim() const {
             continue;
         }
 
+        // we need to change the logic here.
+        // we are checking the lastest access this is not LRU.
+        // We need frame.history.front() of both the pages.
         if (underSampled && victimUnderSampled) {
             if (frame.lastAccess < victimLastAccess) {
                 victim = fileName;
@@ -204,6 +208,8 @@ bool read_file_direct(const string& fileName, string& output) {
     int fd = open(fileName.c_str(), O_RDONLY | O_DIRECT);
     if (fd < 0) return false;
 
+    // allocates buffer with BLOCK_SIZE
+    // this allocated memory with specific byte alignment.
     void* buffer;
     if (posix_memalign(&buffer, BLOCK_SIZE, BLOCK_SIZE)) {
         close(fd);
@@ -269,6 +275,8 @@ bool LRU_K<T>::load_from_disk(const string& fileName, Frame& frame, bool* isLeaf
 
     size_t idx = 0;
 
+
+    // if index node.
     if constexpr (is_same_v<T, map<int, string>>) {
         map<int, string> currNode;
 
@@ -328,6 +336,7 @@ bool LRU_K<T>::flush_to_disk(const string& fileName, Frame& frame) {
         output += to_string(frame.isLeaf) + "\n";
 
         if (!frame.isLeaf) {
+            // checking consistency.
             auto ptr = frame.data.find(0);
             if (ptr == frame.data.end()) return false;
             output += ptr->second + "\n";
@@ -379,6 +388,8 @@ bool LRU_K<T>::evict_if_needed() {
     return true;
 }
 
+
+// this function is made but never used.
 template <typename T>
 void LRU_K<T>::invalidate(const string& fileName) {
     lock_guard<mutex> mapLock(cacheMapMutex);
@@ -399,6 +410,8 @@ bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut, bool record
             if (recordStats) ++readHits;
             touch(it->second);
             out = it->second.data;
+
+            // if leafout not passed then not marked.
             if constexpr (is_same_v<T, map<int, string>>) {
                 if (isLeafOut != nullptr) {
                     *isLeafOut = it->second.isLeaf;
@@ -430,6 +443,9 @@ bool LRU_K<T>::read(const string& fileName, T& out, bool* isLeafOut, bool record
     out = frame.data;
     lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
     Frame& cached = cache[fileName];
+
+    // gpt maxing.
+    // cached=frame hi kar dete :)
     cached.data = frame.data;
     cached.dirty = frame.dirty;
     cached.isLeaf = frame.isLeaf;
@@ -444,6 +460,8 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf, bool r
         Frame direct;
         direct.data = value;
         direct.dirty = true;
+
+        // chose between index cache and data cache.
         if constexpr (is_same_v<T, map<int, string>>) {
             direct.isLeaf = isLeaf;
         } else {
@@ -452,6 +470,7 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf, bool r
         return flush_to_disk(fileName, direct);
     }
 
+    // cache hit.
     {
         lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
         if (recordStats) ++totalWrites;
@@ -461,6 +480,8 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf, bool r
             if (recordStats) ++writeHits;
             it->second.data = value;
             it->second.dirty = true;
+
+            // agar hit hua then y do we need this??
             if constexpr (is_same_v<T, map<int, string>>) {
                 it->second.isLeaf = isLeaf;
             } else {
@@ -486,6 +507,9 @@ bool LRU_K<T>::write(const string& fileName, const T& value, bool isLeaf, bool r
     touch(frame);
     lock_guard<mutex> mapLock(cacheMapMutex); map_latches++;
     Frame& cached = cache[fileName];
+
+
+    // cached =frame kar dete :(
     cached.data = frame.data;
     cached.dirty = frame.dirty;
     cached.isLeaf = frame.isLeaf;

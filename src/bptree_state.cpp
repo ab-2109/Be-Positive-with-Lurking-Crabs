@@ -7,6 +7,8 @@ atomic<long long> BPlusTree::total_s_latches{0};
 atomic<long long> BPlusTree::total_x_latches{0};
 
 shared_ptr<shared_mutex> BPlusTree::get_page_latch(const string& fileName){
+
+    // this locks the pageLatches Unordered Map.
     lock_guard<mutex> lock(pageLatchMutex);
     auto it = pageLatches.find(fileName);
     if (it != pageLatches.end()) {

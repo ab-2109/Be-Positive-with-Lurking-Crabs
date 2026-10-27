@@ -33,6 +33,8 @@ inline void BPlusTree::merge_nodes(map<int,string>& left, map<int,string>& right
 
 void BPlusTree::borrow_node(map<int,string>& childNode,map<int,string>& sibNode,bool isLeaf, int& sepKey, bool isRightSib)
 {
+    // we have to borrow only one node from the sibling as this function will be triggered as soon as we hit less than
+    // n/2 i.e 3 values in the node. 
     if (isLeaf) {
         if (isRightSib) {
             childNode[sibNode.begin()->first] = sibNode.begin()->second;  // move sib's first into child
@@ -66,6 +68,7 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
     map<int, string> currNode = read_file(file, isLeaf);
     const int MIN_KEYS = (N + 1) / 2; // ceil(N/2) = 4 for N=8
 
+    // y didn't use the function real_keys
     int num_keys = isLeaf ? currNode.size() : currNode.size() - 1;
     bool isSafe = (num_keys > MIN_KEYS);
 
@@ -78,12 +81,12 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
 
     if (isLeaf)
     {
-        auto tgt = currNode.find(key);
-        if (tgt == currNode.end()) {
+        auto target = currNode.find(key);
+        if (target == currNode.end()) {
             return {false, false, -1};
         }
 
-        currNode.erase(tgt);
+        currNode.erase(target);
         write_file(file, currNode, true);
 
         if (real_keys(currNode, true) >= MIN_KEYS)
@@ -113,6 +116,8 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
     // so right not it is dangling
     currNode.erase(result.removedSepKey);
 
+    // this is implementation issue we are skipping the merge here
+    // yeh to kaise kar diya :)
     if (real_keys(currNode, false) >= MIN_KEYS)
     {
         write_file(file, currNode, false);
@@ -129,6 +134,8 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
     auto leftIt   = (it != currNode.begin()) ? prev(it) : currNode.end();
     bool hasLeft  = (leftIt != currNode.end());
 
+    // we first try to borrow from right child
+    // even if the right child doesn't have enough then we merge but process right child first
     if (hasRight) {
         string sibFile = rightIt->second;
         auto sibLatch = BPlusTree::get_page_latch(sibFile);
@@ -138,6 +145,7 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
         map<int,string> sibNode = read_file(sibFile, sibIsLeaf);
         int sepKey = rightIt->first;
 
+        // borrow if possible
         if (real_keys(sibNode, sibIsLeaf) > MIN_KEYS) {
             int oldSep = sepKey;
             borrow_node(childNode, sibNode, childIsLeaf, sepKey, true);
@@ -149,6 +157,7 @@ delete_t BPlusTree::f_delete(int key, const string &file, deque<unique_lock<shar
             return {true, false, -1};
         }
 
+        // merge if borrow not possible.
         merge_nodes(childNode, sibNode, childIsLeaf, sepKey);
         currNode.erase(sepKey);
 
@@ -234,7 +243,7 @@ bool BPlusTree::Delete(int key)
     bool rootIsLeaf;
     map<int, string> rootNode = read_file(currentRoot, rootIsLeaf);
 
-    if (!rootIsLeaf && real_keys(rootNode, false)==EMPTY_NODE_VAL)
+    if (!rootIsLeaf && real_keys(rootNode, false)==0)
     {
         string newRoot=rootNode[EMPTY_NODE_VAL];
         reclaim_file_num(currentRoot);

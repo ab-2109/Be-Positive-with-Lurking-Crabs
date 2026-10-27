@@ -14,6 +14,9 @@
 #include <atomic>
 using namespace std;
 
+
+// defined in Main.cpp
+// could have used inline simply. :)
 extern int K;
 extern int INDEX_PAGES;
 extern int DATA_PAGES;
@@ -22,10 +25,8 @@ extern int DATA_PAGES;
 template<typename T>
 class LRU_K{
 
-    static_assert(
-        is_same_v<T, map<int, string>> || is_same_v<T, vector<string>>,
-        "LRU_K<T> supports only map<int,string> and vector<string>."
-    );
+    static_assert(is_same_v<T, map<int, string>> || is_same_v<T, vector<string>>,
+        "LRU_K<T> supports only map<int,string> and vector<string>.");
 
     struct Frame {
         T data;
@@ -61,12 +62,12 @@ class LRU_K{
     public:
 
     LRU_K(int kVal,int pageVal)
-    :k_param(kVal)
-    ,page(pageVal)
+    :k_param(max(1,kVal))
+    ,page(max(0,pageVal)) // if not pages then no caching.
     ,accessClock(0)
     {
-        k_param = max(1, k_param);
-        page = max(0, page);
+        // k_param = max(1, k_param);
+        // page = max(0, page);
     }
 
     ~LRU_K();
